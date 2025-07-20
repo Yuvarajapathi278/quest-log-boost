@@ -18,6 +18,8 @@ import { RealTimeClock } from './RealTimeClock';
 import React, { Suspense } from 'react';
 const StickerSystem = React.lazy(() => import('./StickerSystem'));
 import { CelebrationModal } from './CelebrationModal';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 const TIER_BADGES = [
   { name: 'Bronze', minXP: 0, color: 'text-bronze', icon: '🥉' },
@@ -48,6 +50,7 @@ export const TaskForgeWithSupabase: React.FC = () => {
     revertTask,
     DIFFICULTY_CONFIG
   } = useTaskForge();
+  const { toast } = useToast();
 
   const addTask = () => {
     if (!newTaskTitle.trim() || !newTaskCategory.trim()) return;
@@ -97,6 +100,38 @@ export const TaskForgeWithSupabase: React.FC = () => {
   const getNextTier = () => {
     if (!playerStats) return TIER_BADGES[1];
     return TIER_BADGES.find(tier => playerStats.total_xp < tier.minXP);
+  };
+
+  const saveProgress = async () => {
+    if (!user) return;
+    let errorMsg = '';
+    // Save playerStats
+    const { error: statsError } = await supabase
+      .from('player_stats')
+      .upsert([
+        {
+          user_id: user.id,
+          total_xp: playerStats.total_xp,
+          coins: playerStats.coins,
+          level: playerStats.level,
+          streak: playerStats.streak,
+          last_completed_date: playerStats.last_completed_date,
+          // add other fields as needed
+        }
+      ], { onConflict: ['user_id'] });
+    if (statsError) errorMsg += 'Stats: ' + statsError.message + ' ';
+
+    // Save tasks
+    const { error: tasksError } = await supabase
+      .from('tasks')
+      .upsert(tasks.map(task => ({ ...task, user_id: user.id })), { onConflict: ['id'] });
+    if (tasksError) errorMsg += 'Tasks: ' + tasksError.message;
+
+    if (errorMsg) {
+      toast({ title: 'Save Failed', description: errorMsg, variant: 'destructive' });
+    } else {
+      toast({ title: 'Progress Saved!', description: 'Your progress has been saved to the cloud.' });
+    }
   };
 
   if (loading) {
@@ -158,6 +193,7 @@ export const TaskForgeWithSupabase: React.FC = () => {
             <LogOut className="h-4 w-4 mr-2" />
             Sign Out
           </Button>
+          <Button onClick={saveProgress} variant="outline">Save Progress</Button>
         </div>
       </div>
 

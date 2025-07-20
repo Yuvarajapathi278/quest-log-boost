@@ -50,6 +50,8 @@ export const useTaskForge = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [celebrationData, setCelebrationData] = useState<{
     isOpen: boolean;
     quote: any;
@@ -65,7 +67,7 @@ export const useTaskForge = () => {
   });
 
   // Fetch tasks
-  const { data: tasks = [], isLoading: tasksLoading } = useQuery({
+  const { data: tasksFromDB = [], isLoading: tasksLoading } = useQuery({
     queryKey: ['tasks', user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -82,7 +84,7 @@ export const useTaskForge = () => {
   });
 
   // Fetch player stats
-  const { data: playerStats, isLoading: statsLoading } = useQuery({
+  const { data: playerStatsFromDB, isLoading: statsLoading } = useQuery({
     queryKey: ['player_stats', user?.id],
     queryFn: async () => {
       if (!user) return null;
@@ -310,7 +312,7 @@ export const useTaskForge = () => {
 
   // Generate daily routines
   useEffect(() => {
-    if (!user || !tasks) return;
+    if (!user) return;
     
     const today = new Date().toDateString();
     const hasDefaultsForToday = tasks.some(task => 
@@ -330,6 +332,30 @@ export const useTaskForge = () => {
       });
     }
   }, [user, tasks]);
+
+  // Add a useEffect to fetch tasks and stats from Supabase on login
+  useEffect(() => {
+    if (!user) return;
+    // Fetch player stats
+    (async () => {
+      const { data: stats, error: statsError } = await supabase
+        .from('player_stats')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      if (stats) setPlayerStats(stats);
+      // Optionally handle statsError
+    })();
+    // Fetch tasks
+    (async () => {
+      const { data: userTasks, error: tasksError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user.id);
+      if (userTasks) setTasks(userTasks);
+      // Optionally handle tasksError
+    })();
+  }, [user]);
 
   return {
     tasks,

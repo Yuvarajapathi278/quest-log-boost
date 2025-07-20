@@ -68,12 +68,8 @@ CREATE POLICY "Users can delete own tasks" ON public.tasks
   FOR DELETE USING (auth.uid() = user_id);
 
 -- RLS Policies for player_stats
-CREATE POLICY "Users can view own stats" ON public.player_stats
-  FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can create own stats" ON public.player_stats
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own stats" ON public.player_stats
-  FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own stats" ON public.player_stats
+  FOR ALL USING (auth.uid() = user_id);
 
 -- RLS Policies for unlocked_stickers
 CREATE POLICY "Users can view own stickers" ON public.unlocked_stickers
