@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,15 @@ export const TaskForgeWithSupabase: React.FC = () => {
     DIFFICULTY_CONFIG
   } = useTaskForge();
   const { toast } = useToast();
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!loading && (!playerStats || !tasks)) {
+      setLoadError('Failed to load your progress. Please try refreshing or check your connection.');
+    } else {
+      setLoadError(null);
+    }
+  }, [loading, playerStats, tasks]);
 
   const addTask = () => {
     if (!newTaskTitle.trim() || !newTaskCategory.trim()) return;
@@ -143,6 +152,20 @@ export const TaskForgeWithSupabase: React.FC = () => {
         </div>
       </div>
     );
+  }
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Error</h2>
+          <p className="text-lg text-red-500 mb-4">{loadError}</p>
+          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-primary text-white rounded">Reload</button>
+        </div>
+      </div>
+    );
+  }
+  if (!playerStats || !tasks) {
+    return null;
   }
 
   const currentTier = getCurrentTier();
