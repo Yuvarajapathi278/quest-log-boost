@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: '/quest-log-boost-main/',
+  base: '/quest-log-boost/',
   server: {
     host: "::",
     port: 8080,
@@ -15,6 +15,17 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' &&
     componentTagger(),
   ].filter(Boolean),
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            return id.toString().split('node_modules/')[1].split('/')[0].toString();
+          }
+        }
+      }
+    }
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

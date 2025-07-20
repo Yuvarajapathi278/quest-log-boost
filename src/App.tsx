@@ -18,7 +18,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <BrowserRouter basename="/quest-log-boost/">
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="*" element={<NotFound />} />

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useSupabaseAuth';
 import { useToast } from '@/hooks/use-toast';
-import { STICKER_COLLECTION } from '@/components/StickerSystem';
+import { STICKER_COLLECTION } from '@/components/sticker-collection';
 import { getDifficultySpecificQuote } from '@/components/MotivationalQuotes';
 import confetti from 'canvas-confetti';
 

@@ -15,7 +15,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useSupabaseAuth';
 import { useTaskForge } from '@/hooks/useTaskForge';
 import { RealTimeClock } from './RealTimeClock';
-import { StickerSystem } from './StickerSystem';
+import React, { Suspense } from 'react';
+const StickerSystem = React.lazy(() => import('./StickerSystem'));
 import { CelebrationModal } from './CelebrationModal';
 
 const TIER_BADGES = [
@@ -418,10 +419,12 @@ export const TaskForgeWithSupabase: React.FC = () => {
 
         {/* Stickers and Stats */}
         <div className="space-y-4">
-          <StickerSystem 
-            userLevel={playerStats?.level || 1} 
-            unlockedStickers={unlockedStickers} 
-          />
+          <Suspense fallback={<div>Loading stickers...</div>}>
+            <StickerSystem 
+              userLevel={playerStats?.level || 1} 
+              unlockedStickers={unlockedStickers} 
+            />
+          </Suspense>
 
           <Card className="glass-card">
             <CardHeader>
