@@ -315,6 +315,9 @@ export const useTaskForge = () => {
     if (!user) return;
     
     const today = new Date().toDateString();
+    const lastDefaultsAdded = localStorage.getItem('lastDefaultsAddedDate');
+    if (lastDefaultsAdded === today) return;
+
     const hasDefaultsForToday = tasks.some(task => 
       task.is_default && new Date(task.created_at).toDateString() === today
     );
@@ -330,8 +333,9 @@ export const useTaskForge = () => {
           deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
         });
       });
+      localStorage.setItem('lastDefaultsAddedDate', today);
     }
-  }, [user, tasks]);
+  }, [user]);
 
   // Add a useEffect to fetch tasks and stats from Supabase on login
   useEffect(() => {

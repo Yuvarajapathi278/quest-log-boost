@@ -111,6 +111,9 @@ export const TaskForge: React.FC = () => {
   // Generate default daily routines
   useEffect(() => {
     const today = new Date().toDateString();
+    const lastDefaultsAdded = localStorage.getItem('lastDefaultsAddedDate');
+    if (lastDefaultsAdded === today) return;
+
     const hasDefaultsForToday = tasks.some(task => 
       task.isDefault && task.createdAt.toDateString() === today
     );
@@ -126,10 +129,10 @@ export const TaskForge: React.FC = () => {
         createdAt: new Date(),
         deadline: new Date(Date.now() + 24 * 60 * 60 * 1000)
       }));
-
       setTasks(prev => [...prev, ...defaultTasks]);
+      localStorage.setItem('lastDefaultsAddedDate', today);
     }
-  }, [tasks]);
+  }, []);
 
   // Check for missed tasks
   useEffect(() => {

@@ -69,6 +69,9 @@ export const GamifiedTodo: React.FC = () => {
   // Generate default daily routines
   useEffect(() => {
     const today = new Date().toDateString();
+    const lastDefaultsAdded = localStorage.getItem('lastDefaultsAddedDate');
+    if (lastDefaultsAdded === today) return;
+
     const hasDefaultsForToday = tasks.some(task => 
       task.isDefault && task.createdAt.toDateString() === today
     );
@@ -86,8 +89,9 @@ export const GamifiedTodo: React.FC = () => {
       }));
 
       setTasks(prev => [...prev, ...defaultTasks]);
+      localStorage.setItem('lastDefaultsAddedDate', today);
     }
-  }, [tasks]);
+  }, []);
 
   // Check for missed tasks at end of day
   useEffect(() => {
