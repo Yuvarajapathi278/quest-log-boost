@@ -37,35 +37,59 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
         
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
         
-        if (event === 'SIGNED_IN') {
+        if (event === 'SIGNED_IN' && session?.user) {
           console.log('User signed in successfully');
           
-          // Handle post-authentication tasks
-          if (session?.user) {
-            // Check if user profile exists, create if not
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (!profile) {
-              // Create profile if it doesn't exist
-              await supabase
+          // Defer database operations to prevent deadlock
+          setTimeout(async () => {
+            try {
+              // Check if user profile exists, create if not
+              const { data: profile, error: profileError } = await supabase
                 .from('profiles')
-                .insert([{
-                  id: session.user.id,
-                  username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'User'
-                }]);
+                .select('*')
+                .eq('id', session.user.id)
+                .maybeSingle();
+              
+              if (!profile && !profileError) {
+                console.log('Creating user profile...');
+                await supabase
+                  .from('profiles')
+                  .insert([{
+                    id: session.user.id,
+                    username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'User'
+                  }]);
+              }
+
+              // Check if player stats exist, create if not
+              const { data: stats, error: statsError } = await supabase
+                .from('player_stats')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .maybeSingle();
+
+              if (!stats && !statsError) {
+                console.log('Creating player stats...');
+                await supabase
+                  .from('player_stats')
+                  .insert([{
+                    user_id: session.user.id,
+                    total_xp: 0,
+                    coins: 0,
+                    level: 1,
+                    streak: 0
+                  }]);
+              }
+            } catch (error) {
+              console.error('Error setting up user data:', error);
             }
-          }
+          }, 100);
         }
         
         if (event === 'SIGNED_OUT') {

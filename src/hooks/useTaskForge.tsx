@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,8 +51,6 @@ export const useTaskForge = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [celebrationData, setCelebrationData] = useState<{
     isOpen: boolean;
     quote: any;
@@ -67,37 +66,75 @@ export const useTaskForge = () => {
   });
 
   // Fetch tasks
-  const { data: tasksFromDB = [], isLoading: tasksLoading } = useQuery({
+  const { data: tasks = [], isLoading: tasksLoading, error: tasksError } = useQuery({
     queryKey: ['tasks', user?.id],
     queryFn: async () => {
       if (!user) return [];
+      console.log('Fetching tasks for user:', user.id);
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching tasks:', error);
+        throw error;
+      }
+      console.log('Fetched tasks:', data?.length);
       return data as Task[];
     },
     enabled: !!user,
+    retry: 3,
+    staleTime: 30000,
   });
 
   // Fetch player stats
-  const { data: playerStatsFromDB, isLoading: statsLoading } = useQuery({
+  const { data: playerStats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['player_stats', user?.id],
     queryFn: async () => {
       if (!user) return null;
+      console.log('Fetching player stats for user:', user.id);
       const { data, error } = await supabase
         .from('player_stats')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching player stats:', error);
+        throw error;
+      }
+      
+      // If no stats exist, create them
+      if (!data) {
+        console.log('No player stats found, creating new ones...');
+        const { data: newStats, error: createError } = await supabase
+          .from('player_stats')
+          .insert([{
+            user_id: user.id,
+            total_xp: 0,
+            coins: 0,
+            level: 1,
+            streak: 0
+          }])
+          .select()
+          .single();
+        
+        if (createError) {
+          console.error('Error creating player stats:', createError);
+          throw createError;
+        }
+        console.log('Created new player stats:', newStats);
+        return newStats as PlayerStats;
+      }
+      
+      console.log('Fetched player stats:', data);
       return data as PlayerStats;
     },
     enabled: !!user,
+    retry: 3,
+    staleTime: 30000,
   });
 
   // Fetch unlocked stickers
@@ -312,7 +349,7 @@ export const useTaskForge = () => {
 
   // Generate daily routines
   useEffect(() => {
-    if (!user) return;
+    if (!user || !tasks) return;
     
     const today = new Date().toDateString();
     const lastDefaultsAdded = localStorage.getItem('lastDefaultsAddedDate');
@@ -335,31 +372,27 @@ export const useTaskForge = () => {
       });
       localStorage.setItem('lastDefaultsAddedDate', today);
     }
-  }, [user]);
+  }, [user, tasks]);
 
-  // Add a useEffect to fetch tasks and stats from Supabase on login
+  // Log errors for debugging
   useEffect(() => {
-    if (!user) return;
-    // Fetch player stats
-    (async () => {
-      const { data: stats, error: statsError } = await supabase
-        .from('player_stats')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      if (stats) setPlayerStats(stats);
-      // Optionally handle statsError
-    })();
-    // Fetch tasks
-    (async () => {
-      const { data: userTasks, error: tasksError } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id);
-      if (userTasks) setTasks(userTasks);
-      // Optionally handle tasksError
-    })();
-  }, [user]);
+    if (tasksError) {
+      console.error('Tasks error:', tasksError);
+      toast({
+        title: "Error Loading Tasks",
+        description: "Please try refreshing the page.",
+        variant: "destructive",
+      });
+    }
+    if (statsError) {
+      console.error('Stats error:', statsError);
+      toast({
+        title: "Error Loading Stats",
+        description: "Please try refreshing the page.",
+        variant: "destructive",
+      });
+    }
+  }, [tasksError, statsError, toast]);
 
   return {
     tasks,

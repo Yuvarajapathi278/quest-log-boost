@@ -21,33 +21,33 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const { toast } = useToast();
 
-  // Remove or comment out the Google sign-in button and logic
-  // const handleGoogleSignIn = async () => {
-  //   setGoogleLoading(true);
-  //   try {
-  //     const { error } = await supabase.auth.signInWithOAuth({
-  //       provider: 'google',
-  //       options: {
-  //         redirectTo: `${window.location.origin}/`
-  //       }
-  //     });
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`
+        }
+      });
 
-  //     if (error) throw error;
+      if (error) throw error;
 
-  //     toast({
-  //       title: "Redirecting to Google...",
-  //       description: "You'll be redirected back after authentication.",
-  //     });
-  //   } catch (error: any) {
-  //     toast({
-  //       title: "Google Sign In Failed",
-  //       description: error.message,
-  //       variant: "destructive",
-  //     });
-  //   } finally {
-  //     setGoogleLoading(false);
-  //   }
-  // };
+      toast({
+        title: "Redirecting to Google...",
+        description: "You'll be redirected back after authentication.",
+      });
+    } catch (error: any) {
+      console.error('Google sign in error:', error);
+      toast({
+        title: "Google Sign In Failed",
+        description: error.message || "Please check if Google OAuth is enabled in Supabase settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSignUp = async () => {
     if (!email || !password || !username) {
@@ -80,6 +80,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
       });
       onAuthSuccess();
     } catch (error: any) {
+      console.error('Sign up error:', error);
       toast({
         title: "Sign Up Failed",
         description: error.message,
@@ -115,6 +116,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
       });
       onAuthSuccess();
     } catch (error: any) {
+      console.error('Sign in error:', error);
       toast({
         title: "Sign In Failed",
         description: error.message,
@@ -143,7 +145,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Google Sign In Button */}
-          {/* <Button 
+          <Button 
             onClick={handleGoogleSignIn}
             disabled={googleLoading || loading}
             variant="outline"
@@ -165,7 +167,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
                 <span>Continue with Google</span>
               </div>
             )}
-          </Button> */}
+          </Button>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
