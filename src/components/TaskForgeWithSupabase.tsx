@@ -136,26 +136,22 @@ export const TaskForgeWithSupabase = () => {
     return () => clearInterval(interval);
   });
 
-  if (loading) {
+  if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
-        <div className="text-center space-y-4 p-4">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-          <div className="space-y-2">
-            <p className="text-lg font-medium">Loading TaskForge...</p>
-            <p className="text-sm text-muted-foreground">Preparing your quest adventure...</p>
-          </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg">Loading...</p>
         </div>
       </div>
     );
   }
-
   if (!playerStats || !tasks) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
-        <div className="text-center space-y-4 p-4">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-          <p className="text-lg font-medium">Initializing your quest...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg">Loading your data...</p>
         </div>
       </div>
     );

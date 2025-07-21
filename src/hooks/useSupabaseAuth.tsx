@@ -101,6 +101,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         
         if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setSession(null);
+          // Optionally reset other app state here
           console.log('User signed out');
         }
         
