@@ -2,19 +2,24 @@
 import { useAuth } from '@/hooks/useSupabaseAuth';
 import { Auth } from '@/components/Auth';
 import { TaskForgeWithSupabase } from '@/components/TaskForgeWithSupabase';
+import { useEffect } from 'react';
 
 const Index = () => {
   const { user, loading } = useAuth();
 
-  console.log('Index page - User:', user?.email, 'Loading:', loading);
+  useEffect(() => {
+    console.log('Index page - User:', user?.email, 'Loading:', loading);
+  }, [user, loading]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-lg text-muted-foreground">Loading TaskForge...</p>
-          <p className="text-sm text-muted-foreground mt-2">Initializing your adventure...</p>
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
+          <div className="space-y-2">
+            <p className="text-lg font-medium text-foreground">Loading TaskForge...</p>
+            <p className="text-sm text-muted-foreground">Initializing your adventure...</p>
+          </div>
         </div>
       </div>
     );
