@@ -206,29 +206,36 @@ export const TaskForge: React.FC = () => {
     return TIER_BADGES.find(tier => playerStats.totalXP < tier.minXP);
   };
 
-  const addTask = () => {
-    if (!newTaskTitle.trim() || !newTaskCategory.trim()) return;
+  const [isAdding, setIsAdding] = useState(false); // Add this at the top of your component
 
-    const newTask: Task = {
-      id: Date.now().toString(),
-      title: newTaskTitle,
-      category: newTaskCategory,
-      difficulty: newTaskDifficulty,
-      state: 'todo',
-      isDefault: false,
-      createdAt: new Date()
-    };
+const addTask = async () => {
+  if (isAdding) return; // Prevent double submission
 
-    setTasks(prev => [...prev, newTask]);
-    setNewTaskTitle('');
-    setNewTaskCategory('');
-    
-    toast({
-      title: "Quest Added!",
-      description: "New challenge awaits completion!",
-    });
+  if (!newTaskTitle.trim() || !newTaskCategory.trim()) return;
+
+  setIsAdding(true);
+
+  const newTask: Task = {
+    id: Date.now().toString(),
+    title: newTaskTitle,
+    category: newTaskCategory,
+    difficulty: newTaskDifficulty,
+    state: 'todo',
+    isDefault: false,
+    createdAt: new Date()
   };
 
+  setTasks(prev => [...prev, newTask]);
+  setNewTaskTitle('');
+  setNewTaskCategory('');
+
+  toast({
+    title: "Quest Added!",
+    description: "New challenge awaits completion!",
+  });
+
+  setIsAdding(false);
+};
   const deleteTask = (taskId: string) => {
     setTasks(prev => prev.filter(task => task.id !== taskId));
     toast({
