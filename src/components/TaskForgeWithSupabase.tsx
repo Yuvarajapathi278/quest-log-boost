@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { 
-  Sun, Moon, LogOut
+  Sun, Moon, LogOut, Save, Smartphone
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useSupabaseAuth';
@@ -31,6 +31,7 @@ const TIER_BADGES = [
 
 export const TaskForgeWithSupabase = () => {
   const [filter, setFilter] = useState<'all' | 'todo' | 'inprogress' | 'completed'>('all');
+  const [isSaving, setIsSaving] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
   const {
@@ -64,9 +65,13 @@ export const TaskForgeWithSupabase = () => {
   };
 
   const saveProgress = async () => {
-    if (!user || !playerStats) return;
+    if (!user || !playerStats || isSaving) return;
     
+    setIsSaving(true);
     try {
+      console.log('Starting progress save...');
+      
+      // Save player stats
       const { error: statsError } = await supabase
         .from('player_stats')
         .upsert({
@@ -78,39 +83,68 @@ export const TaskForgeWithSupabase = () => {
           last_completed_date: playerStats.last_completed_date,
         }, { onConflict: 'user_id' });
 
-      if (statsError) throw statsError;
+      if (statsError) {
+        console.error('Stats save error:', statsError);
+        throw new Error(`Failed to save stats: ${statsError.message}`);
+      }
+      console.log('Stats saved successfully');
 
+      // Save tasks if any exist
       if (tasks.length > 0) {
+        const tasksToSave = tasks.map(task => ({ 
+          ...task, 
+          user_id: user.id 
+        }));
+        
         const { error: tasksError } = await supabase
           .from('tasks')
-          .upsert(
-            tasks.map(task => ({ ...task, user_id: user.id })),
-            { onConflict: 'id' }
-          );
+          .upsert(tasksToSave, { onConflict: 'id' });
 
-        if (tasksError) throw tasksError;
+        if (tasksError) {
+          console.error('Tasks save error:', tasksError);
+          throw new Error(`Failed to save tasks: ${tasksError.message}`);
+        }
+        console.log('Tasks saved successfully');
       }
 
       toast({ 
-        title: 'Progress Saved!', 
-        description: 'Your progress has been saved to the cloud.' 
+        title: '💾 Progress Saved!', 
+        description: 'Your adventure progress has been safely stored in the cloud.',
+        duration: 3000
       });
     } catch (error: any) {
-      console.error('Save error:', error);
+      console.error('Save operation failed:', error);
       toast({ 
-        title: 'Save Failed', 
-        description: error.message, 
-        variant: 'destructive' 
+        title: '❌ Save Failed', 
+        description: error.message || 'Unable to save progress. Please try again.', 
+        variant: 'destructive',
+        duration: 5000
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
+  // Auto-save every 30 seconds
+  useState(() => {
+    const interval = setInterval(() => {
+      if (user && playerStats && !isSaving) {
+        saveProgress();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  });
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-lg">Loading TaskForge...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
+        <div className="text-center space-y-4 p-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
+          <div className="space-y-2">
+            <p className="text-lg font-medium">Loading TaskForge...</p>
+            <p className="text-sm text-muted-foreground">Preparing your quest adventure...</p>
+          </div>
         </div>
       </div>
     );
@@ -118,10 +152,10 @@ export const TaskForgeWithSupabase = () => {
 
   if (!playerStats || !tasks) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-lg">Initializing your quest...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
+        <div className="text-center space-y-4 p-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
+          <p className="text-lg font-medium">Initializing your quest...</p>
         </div>
       </div>
     );
@@ -134,7 +168,7 @@ export const TaskForgeWithSupabase = () => {
     : 100;
 
   return (
-    <div className="min-h-screen p-4 space-y-6">
+    <div className="min-h-screen p-2 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
       <CelebrationModal
         isOpen={celebrationData.isOpen}
         onClose={() => setCelebrationData(prev => ({ ...prev, isOpen: false }))}
@@ -144,22 +178,24 @@ export const TaskForgeWithSupabase = () => {
         taskTitle={celebrationData.taskTitle}
       />
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+      {/* Mobile-Optimized Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 sm:mb-6">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent truncate">
             TaskForge
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Welcome back, {user?.email}! Ready to level up?
+          <p className="text-sm sm:text-base text-muted-foreground mt-1 truncate">
+            Welcome back, {user?.email?.split('@')[0]}! Ready to level up?
           </p>
           <p className="text-xs text-muted-foreground">
             Crafted with love by Yuvi.
           </p>
         </div>
         
-        <div className="flex items-center space-x-4">
-          <RealTimeClock />
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
+          <div className="hidden sm:block">
+            <RealTimeClock />
+          </div>
           
           <div className="flex items-center space-x-2">
             <Sun className="h-4 w-4" />
@@ -170,28 +206,45 @@ export const TaskForgeWithSupabase = () => {
             <Moon className="h-4 w-4" />
           </div>
           
-          <Button onClick={signOut} variant="outline" size="sm">
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
+          <Button 
+            onClick={saveProgress} 
+            variant="outline" 
+            size="sm"
+            disabled={isSaving}
+            className="flex items-center gap-2"
+          >
+            <Save className={`h-4 w-4 ${isSaving ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">
+              {isSaving ? 'Saving...' : 'Save'}
+            </span>
           </Button>
-          <Button onClick={saveProgress} variant="outline">Save Progress</Button>
+          
+          <Button onClick={signOut} variant="outline" size="sm" className="flex items-center gap-2">
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Sign Out</span>
+          </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Mobile Clock for small screens */}
+      <div className="sm:hidden flex justify-center">
+        <RealTimeClock />
+      </div>
+
+      {/* Stats Cards - Mobile Responsive */}
       {playerStats && (
         <StatsCards playerStats={playerStats} currentTier={currentTier} />
       )}
 
-      {/* Progress to Next Tier */}
+      {/* Progress to Next Tier - Mobile Optimized */}
       {nextTier && playerStats && (
         <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
+              <span className="text-xs sm:text-sm text-muted-foreground">
                 Progress to {nextTier.name} {nextTier.icon}
               </span>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-xs sm:text-sm text-muted-foreground">
                 {playerStats.total_xp}/{nextTier.minXP} XP
               </span>
             </div>
@@ -200,7 +253,8 @@ export const TaskForgeWithSupabase = () => {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Main Content - Mobile Responsive Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Task Management */}
         <div className="lg:col-span-2 space-y-4">
           <TaskCreator onCreateTask={createTask} />
@@ -214,13 +268,21 @@ export const TaskForgeWithSupabase = () => {
           />
         </div>
 
-        {/* Stickers and Stats */}
+        {/* Stickers and Stats - Mobile Responsive */}
         <div className="space-y-4">
           <StickerSystem 
             userLevel={playerStats?.level || 1} 
             unlockedStickers={unlockedStickers} 
           />
           <QuestStats tasks={tasks} />
+        </div>
+      </div>
+
+      {/* Mobile Performance Indicator */}
+      <div className="sm:hidden fixed bottom-4 right-4 z-50">
+        <div className="flex items-center space-x-2 bg-background/80 backdrop-blur-sm rounded-full px-3 py-2 border">
+          <Smartphone className="h-4 w-4 text-green-500" />
+          <span className="text-xs text-muted-foreground">Mobile Ready</span>
         </div>
       </div>
     </div>

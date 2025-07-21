@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -65,12 +64,13 @@ export const useTaskForge = () => {
     taskTitle: ''
   });
 
-  // Fetch tasks
+  // Enhanced fetch tasks with better error handling
   const { data: tasks = [], isLoading: tasksLoading, error: tasksError } = useQuery({
     queryKey: ['tasks', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      console.log('Fetching tasks for user:', user.id);
+      console.log('🔄 Fetching tasks for user:', user.id);
+      
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -78,23 +78,30 @@ export const useTaskForge = () => {
         .order('created_at', { ascending: false });
       
       if (error) {
-        console.error('Error fetching tasks:', error);
-        throw error;
+        console.error('❌ Error fetching tasks:', error);
+        throw new Error(`Failed to fetch tasks: ${error.message}`);
       }
-      console.log('Fetched tasks:', data?.length);
+      
+      console.log('✅ Successfully fetched', data?.length || 0, 'tasks');
       return data as Task[];
     },
     enabled: !!user,
-    retry: 3,
+    retry: (failureCount, error) => {
+      console.log(`Retry attempt ${failureCount} for tasks:`, error);
+      return failureCount < 3;
+    },
     staleTime: 30000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
-  // Fetch player stats
+  // Enhanced fetch player stats with better error handling
   const { data: playerStats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['player_stats', user?.id],
     queryFn: async () => {
       if (!user) return null;
-      console.log('Fetching player stats for user:', user.id);
+      console.log('🔄 Fetching player stats for user:', user.id);
+      
       const { data, error } = await supabase
         .from('player_stats')
         .select('*')
@@ -102,12 +109,12 @@ export const useTaskForge = () => {
         .maybeSingle();
       
       if (error) {
-        console.error('Error fetching player stats:', error);
-        throw error;
+        console.error('❌ Error fetching player stats:', error);
+        throw new Error(`Failed to fetch player stats: ${error.message}`);
       }
       
       if (!data) {
-        console.log('No player stats found, creating new ones...');
+        console.log('📊 No player stats found, creating new ones...');
         const { data: newStats, error: createError } = await supabase
           .from('player_stats')
           .insert([{
@@ -121,19 +128,25 @@ export const useTaskForge = () => {
           .single();
         
         if (createError) {
-          console.error('Error creating player stats:', createError);
-          throw createError;
+          console.error('❌ Error creating player stats:', createError);
+          throw new Error(`Failed to create player stats: ${createError.message}`);
         }
-        console.log('Created new player stats:', newStats);
+        
+        console.log('✅ Created new player stats:', newStats);
         return newStats as PlayerStats;
       }
       
-      console.log('Fetched player stats:', data);
+      console.log('✅ Successfully fetched player stats');
       return data as PlayerStats;
     },
     enabled: !!user,
-    retry: 3,
+    retry: (failureCount, error) => {
+      console.log(`Retry attempt ${failureCount} for stats:`, error);
+      return failureCount < 3;
+    },
     staleTime: 30000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   // Fetch unlocked stickers
@@ -152,40 +165,47 @@ export const useTaskForge = () => {
     enabled: !!user,
   });
 
-  // Create task mutation
+  // Enhanced create task mutation
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: Omit<Task, 'id' | 'created_at' | 'user_id'>) => {
       if (!user) throw new Error('User not authenticated');
       
+      console.log('🆕 Creating new task:', taskData.title);
       const { data, error } = await supabase
         .from('tasks')
         .insert([{ ...taskData, user_id: user.id }])
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Create task error:', error);
+        throw new Error(`Failed to create task: ${error.message}`);
+      }
+      
+      console.log('✅ Task created successfully');
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({
-        title: "Quest Added!",
+        title: "🎯 Quest Added!",
         description: "New challenge awaits completion!",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Create task error:', error);
       toast({
-        title: "Failed to Create Quest",
-        description: "Please try again.",
+        title: "❌ Failed to Create Quest",
+        description: error.message || "Please try again.",
         variant: "destructive",
       });
     },
   });
 
-  // Update task mutation
+  // Enhanced update task mutation
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Task> }) => {
+      console.log('🔄 Updating task:', id, updates);
       const { data, error } = await supabase
         .from('tasks')
         .update(updates)
@@ -193,17 +213,22 @@ export const useTaskForge = () => {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Update task error:', error);
+        throw new Error(`Failed to update task: ${error.message}`);
+      }
+      
+      console.log('✅ Task updated successfully');
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Update task error:', error);
       toast({
-        title: "Failed to Update Quest",
-        description: "Please try again.",
+        title: "❌ Failed to Update Quest",
+        description: error.message || "Please try again.",
         variant: "destructive",
       });
     },
@@ -236,11 +261,12 @@ export const useTaskForge = () => {
     },
   });
 
-  // Update player stats mutation
+  // Enhanced update player stats mutation
   const updateStatsMutation = useMutation({
     mutationFn: async (updates: Partial<PlayerStats>) => {
       if (!user || !playerStats) throw new Error('User or stats not available');
       
+      console.log('📊 Updating player stats:', updates);
       const { data, error } = await supabase
         .from('player_stats')
         .update(updates)
@@ -248,14 +274,24 @@ export const useTaskForge = () => {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Update stats error:', error);
+        throw new Error(`Failed to update stats: ${error.message}`);
+      }
+      
+      console.log('✅ Player stats updated successfully');
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['player_stats'] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Update stats error:', error);
+      toast({
+        title: "❌ Failed to Update Stats",
+        description: error.message || "Progress may not be saved.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -317,6 +353,8 @@ export const useTaskForge = () => {
     const newLevel = Math.floor(newXP / 100) + 1;
     
     try {
+      console.log('🎯 Completing task:', task.title);
+      
       // Update task
       await updateTaskMutation.mutateAsync({
         id: taskId,
@@ -372,19 +410,21 @@ export const useTaskForge = () => {
         spread: 50,
         origin: { y: 0.7 }
       });
-    } catch (error) {
-      console.error('Complete task error:', error);
+      
+      console.log('✅ Task completed successfully');
+    } catch (error: any) {
+      console.error('❌ Complete task error:', error);
       toast({
-        title: "Failed to Complete Quest",
-        description: "Please try again.",
+        title: "❌ Failed to Complete Quest",
+        description: error.message || "Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  // Generate daily routines
+  // Enhanced daily routines generation
   useEffect(() => {
-    if (!user || !Array.isArray(tasks)) return;
+    if (!user || !Array.isArray(tasks) || tasksLoading) return;
     
     const today = new Date().toDateString();
     const lastDefaultsAdded = localStorage.getItem(`lastDefaultsAddedDate_${user.id}`);
@@ -395,37 +435,39 @@ export const useTaskForge = () => {
       task.is_default && new Date(task.created_at).toDateString() === today
     );
 
-    if (!hasDefaultsForToday && tasks.length >= 0) {
-      console.log('Adding default routines for today...');
-      DEFAULT_ROUTINES.forEach(routine => {
-        createTaskMutation.mutate({
-          title: routine.title,
-          category: routine.category,
-          difficulty: routine.difficulty,
-          state: 'todo',
-          is_default: true,
-          deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-        });
+    if (!hasDefaultsForToday) {
+      console.log('🔄 Adding default routines for today...');
+      DEFAULT_ROUTINES.forEach((routine, index) => {
+        setTimeout(() => {
+          createTaskMutation.mutate({
+            title: routine.title,
+            category: routine.category,
+            difficulty: routine.difficulty,
+            state: 'todo',
+            is_default: true,
+            deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+          });
+        }, index * 100); // Stagger creation to avoid conflicts
       });
       localStorage.setItem(`lastDefaultsAddedDate_${user.id}`, today);
     }
-  }, [user?.id, tasks, createTaskMutation]);
+  }, [user?.id, tasks, tasksLoading, createTaskMutation]);
 
-  // Log errors for debugging
+  // Enhanced error logging
   useEffect(() => {
     if (tasksError) {
-      console.error('Tasks error:', tasksError);
+      console.error('📋 Tasks error:', tasksError);
       toast({
-        title: "Error Loading Tasks",
-        description: "Please try refreshing the page.",
+        title: "❌ Error Loading Tasks",
+        description: "Please check your connection and try refreshing.",
         variant: "destructive",
       });
     }
     if (statsError) {
-      console.error('Stats error:', statsError);
+      console.error('📊 Stats error:', statsError);
       toast({
-        title: "Error Loading Stats",
-        description: "Please try refreshing the page.",
+        title: "❌ Error Loading Stats",
+        description: "Please check your connection and try refreshing.",
         variant: "destructive",
       });
     }
@@ -438,6 +480,7 @@ export const useTaskForge = () => {
     celebrationData,
     setCelebrationData,
     loading: tasksLoading || statsLoading,
+    error: tasksError || statsError,
     createTask: createTaskMutation.mutate,
     updateTask: updateTaskMutation.mutate,
     deleteTask: deleteTaskMutation.mutate,
@@ -453,6 +496,8 @@ export const useTaskForge = () => {
       const config = DIFFICULTY_CONFIG[task.difficulty];
       
       try {
+        console.log('↩️ Reverting task:', task.title);
+        
         await updateTaskMutation.mutateAsync({
           id: taskId,
           updates: { state: 'todo', completed_at: null }
@@ -464,14 +509,16 @@ export const useTaskForge = () => {
         });
 
         toast({
-          title: "Quest Reverted",
+          title: "↩️ Quest Reverted",
           description: `Task moved back to To Do. -${config.xp} XP, -${config.coins} coins.`,
         });
-      } catch (error) {
-        console.error('Revert task error:', error);
+        
+        console.log('✅ Task reverted successfully');
+      } catch (error: any) {
+        console.error('❌ Revert task error:', error);
         toast({
-          title: "Failed to Revert Quest",
-          description: "Please try again.",
+          title: "❌ Failed to Revert Quest",
+          description: error.message || "Please try again.",
           variant: "destructive",
         });
       }
