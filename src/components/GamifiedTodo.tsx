@@ -45,13 +45,6 @@ const TIER_BADGES = [
   { name: 'Ultra', minXP: 1000, color: 'text-ultra', icon: '⭐' }
 ];
 
-const DEFAULT_ROUTINES = [
-  { title: 'DSA Practice', category: 'Coding', difficulty: 'medium' as const },
-  { title: 'Flutter Dev', category: 'Development', difficulty: 'hard' as const },
-  { title: 'System Design Review', category: 'Learning', difficulty: 'medium' as const },
-  { title: 'Brain Detox', category: 'Wellness', difficulty: 'easy' as const }
-];
-
 export const GamifiedTodo: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -65,33 +58,6 @@ export const GamifiedTodo: React.FC = () => {
     streak: 0
   });
   const { toast } = useToast();
-
-  // Generate default daily routines
-  useEffect(() => {
-    const today = new Date().toDateString();
-    const lastDefaultsAdded = localStorage.getItem('lastDefaultsAddedDate');
-    if (lastDefaultsAdded === today) return;
-
-    const hasDefaultsForToday = tasks.some(task => 
-      task.isDefault && task.createdAt.toDateString() === today
-    );
-
-    if (!hasDefaultsForToday) {
-      const defaultTasks: Task[] = DEFAULT_ROUTINES.map(routine => ({
-        id: `default-${Date.now()}-${Math.random()}`,
-        title: routine.title,
-        category: routine.category,
-        difficulty: routine.difficulty,
-        state: 'todo',
-        isDefault: true,
-        createdAt: new Date(),
-        deadline: new Date(Date.now() + 24 * 60 * 60 * 1000) // End of day
-      }));
-
-      setTasks(prev => [...prev, ...defaultTasks]);
-      localStorage.setItem('lastDefaultsAddedDate', today);
-    }
-  }, []);
 
   // Check for missed tasks at end of day
   useEffect(() => {
