@@ -13,7 +13,7 @@ interface StatsCardsProps {
   };
 }
 
-export const StatsCards: React.FC<StatsCardsProps> = ({ playerStats, currentTier }) => {
+export const StatsCards: React.FC<StatsCardsProps> = React.memo(({ playerStats, currentTier }) => {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
       <Card className="glass-card">
@@ -75,4 +75,4 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ playerStats, currentTier
       </Card>
     </div>
   );
-};
+});

@@ -30,7 +30,7 @@ const getRarityBg = (rarity: string) => {
   }
 };
 
-export const StickerSystem: React.FC<StickerSystemProps> = ({ userLevel, unlockedStickers }) => {
+export const StickerSystem: React.FC<StickerSystemProps> = React.memo(({ userLevel, unlockedStickers }) => {
   const availableStickers = STICKER_COLLECTION.filter(sticker => userLevel >= sticker.levelRequired);
   const lockedStickers = STICKER_COLLECTION.filter(sticker => userLevel < sticker.levelRequired);
 
@@ -114,4 +114,4 @@ export const StickerSystem: React.FC<StickerSystemProps> = ({ userLevel, unlocke
       </CardContent>
     </Card>
   );
-};
+});

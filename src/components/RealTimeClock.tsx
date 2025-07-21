@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
 
-export const RealTimeClock: React.FC = () => {
+export const RealTimeClock: React.FC = React.memo(() => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -40,4 +40,4 @@ export const RealTimeClock: React.FC = () => {
       </div>
     </div>
   );
-};
+});
