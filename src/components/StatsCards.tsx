@@ -8,8 +8,8 @@ interface StatsCardsProps {
   playerStats: PlayerStats;
   currentTier: {
     name: string;
-    icon: string;
     color: string;
+    icon: string;
   };
 }
 

@@ -35,7 +35,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let mounted = true;
     
-    // Set up auth state listener first
+    console.log('Setting up auth state listener...');
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
@@ -48,12 +49,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('User signed in successfully');
           
-          // Use a small delay to prevent deadlock
+          // Use a longer delay to prevent deadlock issues
           setTimeout(async () => {
             if (!mounted) return;
             
             try {
-              // Check if user profile exists, create if not
+              // Check if user profile exists
               const { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
@@ -62,15 +63,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               
               if (!profile && !profileError && mounted) {
                 console.log('Creating user profile...');
-                await supabase
+                const { error: insertError } = await supabase
                   .from('profiles')
                   .insert([{
                     id: session.user.id,
                     username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'User'
                   }]);
+                
+                if (insertError) console.error('Profile creation error:', insertError);
               }
 
-              // Check if player stats exist, create if not
+              // Check if player stats exist
               const { data: stats, error: statsError } = await supabase
                 .from('player_stats')
                 .select('*')
@@ -79,7 +82,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
               if (!stats && !statsError && mounted) {
                 console.log('Creating player stats...');
-                await supabase
+                const { error: insertError } = await supabase
                   .from('player_stats')
                   .insert([{
                     user_id: session.user.id,
@@ -88,11 +91,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     level: 1,
                     streak: 0
                   }]);
+                
+                if (insertError) console.error('Stats creation error:', insertError);
               }
             } catch (error) {
               console.error('Error setting up user data:', error);
             }
-          }, 150);
+          }, 200);
         }
         
         if (event === 'SIGNED_OUT') {
@@ -103,14 +108,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Then check for existing session
+    // Initialize auth state
     const initializeAuth = async () => {
       try {
+        console.log('Checking for existing session...');
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting session:', error);
         } else {
-          console.log('Initial session:', session?.user?.email);
+          console.log('Initial session check:', session?.user?.email || 'No user');
           if (mounted) {
             setSession(session);
             setUser(session?.user ?? null);
@@ -128,6 +134,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initializeAuth();
 
     return () => {
+      console.log('Cleaning up auth listener...');
       mounted = false;
       subscription.unsubscribe();
     };

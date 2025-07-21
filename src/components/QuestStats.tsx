@@ -10,6 +10,7 @@ interface QuestStatsProps {
 export const QuestStats: React.FC<QuestStatsProps> = ({ tasks }) => {
   const completedTasks = tasks.filter(t => t.state === 'completed').length;
   const inProgressTasks = tasks.filter(t => t.state === 'inprogress').length;
+  const missedTasks = tasks.filter(t => t.state === 'missed').length;
   const successRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
 
   return (
@@ -29,6 +30,10 @@ export const QuestStats: React.FC<QuestStatsProps> = ({ tasks }) => {
         <div className="flex justify-between">
           <span className="text-sm text-muted-foreground">In Progress</span>
           <span className="font-medium text-blue-400">{inProgressTasks}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-sm text-muted-foreground">Missed</span>
+          <span className="font-medium text-red-400">{missedTasks}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-sm text-muted-foreground">Success Rate</span>

@@ -37,6 +37,12 @@ export const TaskCreator: React.FC<TaskCreatorProps> = ({ onCreateTask }) => {
     setNewTaskCategory('');
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      addTask();
+    }
+  };
+
   return (
     <Card className="glass-card">
       <CardHeader>
@@ -51,11 +57,13 @@ export const TaskCreator: React.FC<TaskCreatorProps> = ({ onCreateTask }) => {
             placeholder="Quest title..."
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
+            onKeyPress={handleKeyPress}
           />
           <Input
             placeholder="Category..."
             value={newTaskCategory}
             onChange={(e) => setNewTaskCategory(e.target.value)}
+            onKeyPress={handleKeyPress}
           />
         </div>
         <div className="flex space-x-2">
@@ -71,7 +79,11 @@ export const TaskCreator: React.FC<TaskCreatorProps> = ({ onCreateTask }) => {
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={addTask} className="primary-gradient">
+          <Button 
+            onClick={addTask} 
+            className="primary-gradient"
+            disabled={!newTaskTitle.trim() || !newTaskCategory.trim()}
+          >
             <Plus className="h-4 w-4" />
             Forge Quest
           </Button>

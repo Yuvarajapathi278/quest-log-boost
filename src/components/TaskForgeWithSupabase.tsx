@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -19,7 +19,7 @@ import { TaskFilters } from './TaskFilters';
 import { TaskList } from './TaskList';
 import { QuestStats } from './QuestStats';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 const TIER_BADGES = [
   { name: 'Bronze', minXP: 0, color: 'text-bronze', icon: '🥉' },
@@ -29,7 +29,7 @@ const TIER_BADGES = [
   { name: 'Ultra', minXP: 1000, color: 'text-ultra', icon: '⭐' }
 ];
 
-export const TaskForgeWithSupabase: React.FC = () => {
+export const TaskForgeWithSupabase = () => {
   const [filter, setFilter] = useState<'all' | 'todo' | 'inprogress' | 'completed'>('all');
   const { theme, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();

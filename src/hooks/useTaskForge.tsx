@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -172,6 +173,14 @@ export const useTaskForge = () => {
         description: "New challenge awaits completion!",
       });
     },
+    onError: (error) => {
+      console.error('Create task error:', error);
+      toast({
+        title: "Failed to Create Quest",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   // Update task mutation
@@ -190,6 +199,14 @@ export const useTaskForge = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
+    onError: (error) => {
+      console.error('Update task error:', error);
+      toast({
+        title: "Failed to Update Quest",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   // Delete task mutation
@@ -207,6 +224,14 @@ export const useTaskForge = () => {
       toast({
         title: "Quest Removed",
         description: "Task has been deleted from your quest log.",
+      });
+    },
+    onError: (error) => {
+      console.error('Delete task error:', error);
+      toast({
+        title: "Failed to Delete Quest",
+        description: "Please try again.",
+        variant: "destructive",
       });
     },
   });
@@ -228,6 +253,9 @@ export const useTaskForge = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['player_stats'] });
+    },
+    onError: (error) => {
+      console.error('Update stats error:', error);
     },
   });
 
@@ -288,76 +316,87 @@ export const useTaskForge = () => {
     const newCoins = playerStats.coins + config.coins;
     const newLevel = Math.floor(newXP / 100) + 1;
     
-    // Update task
-    await updateTaskMutation.mutateAsync({
-      id: taskId,
-      updates: { state: 'completed', completed_at: new Date().toISOString() }
-    });
+    try {
+      // Update task
+      await updateTaskMutation.mutateAsync({
+        id: taskId,
+        updates: { state: 'completed', completed_at: new Date().toISOString() }
+      });
 
-    // Update stats
-    const today = new Date();
-    const completedToday = tasks.some(t => 
-      t.state === 'completed' && 
-      t.completed_at && 
-      new Date(t.completed_at).toDateString() === today.toDateString()
-    );
+      // Update stats
+      const today = new Date();
+      const completedToday = tasks.some(t => 
+        t.state === 'completed' && 
+        t.completed_at && 
+        new Date(t.completed_at).toDateString() === today.toDateString()
+      );
 
-    await updateStatsMutation.mutateAsync({
-      total_xp: newXP,
-      coins: newCoins,
-      level: newLevel,
-      streak: completedToday ? playerStats.streak : playerStats.streak + 1,
-      last_completed_date: today.toISOString()
-    });
+      await updateStatsMutation.mutateAsync({
+        total_xp: newXP,
+        coins: newCoins,
+        level: newLevel,
+        streak: completedToday ? playerStats.streak : playerStats.streak + 1,
+        last_completed_date: today.toISOString()
+      });
 
-    // Check for level up
-    if (newLevel > playerStats.level) {
+      // Check for level up
+      if (newLevel > playerStats.level) {
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+        
+        toast({
+          title: `🎉 Level Up! Level ${newLevel}`,
+          description: `You've gained incredible power!`,
+        });
+
+        // Check for new stickers
+        await checkStickerUnlocks(newLevel, newXP);
+      }
+
+      // Get motivational quote and show celebration
+      const quote = getDifficultySpecificQuote(task.difficulty);
+      setCelebrationData({
+        isOpen: true,
+        quote,
+        xpGained: config.xp,
+        coinsGained: config.coins,
+        taskTitle: task.title
+      });
+
+      // Confetti celebration
       confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 }
+        particleCount: 50,
+        spread: 50,
+        origin: { y: 0.7 }
       });
-      
+    } catch (error) {
+      console.error('Complete task error:', error);
       toast({
-        title: `🎉 Level Up! Level ${newLevel}`,
-        description: `You've gained incredible power!`,
+        title: "Failed to Complete Quest",
+        description: "Please try again.",
+        variant: "destructive",
       });
-
-      // Check for new stickers
-      await checkStickerUnlocks(newLevel, newXP);
     }
-
-    // Get motivational quote and show celebration
-    const quote = getDifficultySpecificQuote(task.difficulty);
-    setCelebrationData({
-      isOpen: true,
-      quote,
-      xpGained: config.xp,
-      coinsGained: config.coins,
-      taskTitle: task.title
-    });
-
-    // Confetti celebration
-    confetti({
-      particleCount: 50,
-      spread: 50,
-      origin: { y: 0.7 }
-    });
   };
 
   // Generate daily routines
   useEffect(() => {
-    if (!user || !tasks || tasks.length === 0) return;
+    if (!user || !Array.isArray(tasks)) return;
     
     const today = new Date().toDateString();
-    const lastDefaultsAdded = localStorage.getItem('lastDefaultsAddedDate');
+    const lastDefaultsAdded = localStorage.getItem(`lastDefaultsAddedDate_${user.id}`);
+    
     if (lastDefaultsAdded === today) return;
 
     const hasDefaultsForToday = tasks.some(task => 
       task.is_default && new Date(task.created_at).toDateString() === today
     );
 
-    if (!hasDefaultsForToday) {
+    if (!hasDefaultsForToday && tasks.length >= 0) {
+      console.log('Adding default routines for today...');
       DEFAULT_ROUTINES.forEach(routine => {
         createTaskMutation.mutate({
           title: routine.title,
@@ -368,9 +407,9 @@ export const useTaskForge = () => {
           deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
         });
       });
-      localStorage.setItem('lastDefaultsAddedDate', today);
+      localStorage.setItem(`lastDefaultsAddedDate_${user.id}`, today);
     }
-  }, [user, tasks?.length]);
+  }, [user?.id, tasks, createTaskMutation]);
 
   // Log errors for debugging
   useEffect(() => {
@@ -393,7 +432,7 @@ export const useTaskForge = () => {
   }, [tasksError, statsError, toast]);
 
   return {
-    tasks,
+    tasks: tasks || [],
     playerStats,
     unlockedStickers,
     celebrationData,
@@ -413,20 +452,29 @@ export const useTaskForge = () => {
 
       const config = DIFFICULTY_CONFIG[task.difficulty];
       
-      await updateTaskMutation.mutateAsync({
-        id: taskId,
-        updates: { state: 'todo', completed_at: null }
-      });
+      try {
+        await updateTaskMutation.mutateAsync({
+          id: taskId,
+          updates: { state: 'todo', completed_at: null }
+        });
 
-      await updateStatsMutation.mutateAsync({
-        total_xp: Math.max(0, playerStats.total_xp - config.xp),
-        coins: Math.max(0, playerStats.coins - config.coins)
-      });
+        await updateStatsMutation.mutateAsync({
+          total_xp: Math.max(0, playerStats.total_xp - config.xp),
+          coins: Math.max(0, playerStats.coins - config.coins)
+        });
 
-      toast({
-        title: "Quest Reverted",
-        description: `Task moved back to To Do. -${config.xp} XP, -${config.coins} coins.`,
-      });
+        toast({
+          title: "Quest Reverted",
+          description: `Task moved back to To Do. -${config.xp} XP, -${config.coins} coins.`,
+        });
+      } catch (error) {
+        console.error('Revert task error:', error);
+        toast({
+          title: "Failed to Revert Quest",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 };

@@ -41,6 +41,17 @@ export const TaskList: React.FC<TaskListProps> = ({
   onRevertTask,
   onDeleteTask
 }) => {
+  if (tasks.length === 0) {
+    return (
+      <Card className="glass-card">
+        <CardContent className="p-8 text-center">
+          <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">No tasks found. Create your first quest!</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-3">
       {tasks.map((task) => {

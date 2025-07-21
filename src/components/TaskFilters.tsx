@@ -10,7 +10,7 @@ interface TaskFiltersProps {
 }
 
 export const TaskFilters: React.FC<TaskFiltersProps> = ({ filter, onFilterChange }) => {
-  const filterTypes = [
+  const filters = [
     { key: 'all' as const, label: 'All' },
     { key: 'todo' as const, label: 'To Do' },
     { key: 'inprogress' as const, label: 'In Progress' },
@@ -24,7 +24,7 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({ filter, onFilterChange
           <Filter className="h-4 w-4" />
           <span className="text-sm font-medium">Filter:</span>
           <div className="flex space-x-2">
-            {filterTypes.map((filterType) => (
+            {filters.map((filterType) => (
               <Button
                 key={filterType.key}
                 variant={filter === filterType.key ? 'default' : 'outline'}
