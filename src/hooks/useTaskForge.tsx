@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,7 +32,7 @@ export interface PlayerStats {
   created_at: string;
 }
 
-const DIFFICULTY_CONFIG = {
+export const DIFFICULTY_CONFIG = {
   easy: { xp: 10, coins: 5, color: 'text-green-400', label: 'Easy' },
   medium: { xp: 25, coins: 10, color: 'text-yellow-400', label: 'Medium' },
   hard: { xp: 50, coins: 20, color: 'text-orange-400', label: 'Hard' },
@@ -106,7 +105,6 @@ export const useTaskForge = () => {
         throw error;
       }
       
-      // If no stats exist, create them
       if (!data) {
         console.log('No player stats found, creating new ones...');
         const { data: newStats, error: createError } = await supabase
@@ -349,7 +347,7 @@ export const useTaskForge = () => {
 
   // Generate daily routines
   useEffect(() => {
-    if (!user || !tasks) return;
+    if (!user || !tasks || tasks.length === 0) return;
     
     const today = new Date().toDateString();
     const lastDefaultsAdded = localStorage.getItem('lastDefaultsAddedDate');
@@ -372,7 +370,7 @@ export const useTaskForge = () => {
       });
       localStorage.setItem('lastDefaultsAddedDate', today);
     }
-  }, [user, tasks]);
+  }, [user, tasks?.length]);
 
   // Log errors for debugging
   useEffect(() => {
@@ -429,7 +427,6 @@ export const useTaskForge = () => {
         title: "Quest Reverted",
         description: `Task moved back to To Do. -${config.xp} XP, -${config.coins} coins.`,
       });
-    },
-    DIFFICULTY_CONFIG
+    }
   };
 };

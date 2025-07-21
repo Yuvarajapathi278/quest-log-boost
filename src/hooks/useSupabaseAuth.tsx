@@ -33,22 +33,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log('Setting up auth listener...');
+    let mounted = true;
     
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
+        if (!mounted) return;
+        
         console.log('Auth state changed:', event, session?.user?.email);
         
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
         
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('User signed in successfully');
           
-          // Defer database operations to prevent deadlock
+          // Use a small delay to prevent deadlock
           setTimeout(async () => {
+            if (!mounted) return;
+            
             try {
               // Check if user profile exists, create if not
               const { data: profile, error: profileError } = await supabase
@@ -57,7 +60,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 .eq('id', session.user.id)
                 .maybeSingle();
               
-              if (!profile && !profileError) {
+              if (!profile && !profileError && mounted) {
                 console.log('Creating user profile...');
                 await supabase
                   .from('profiles')
@@ -74,7 +77,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 .eq('user_id', session.user.id)
                 .maybeSingle();
 
-              if (!stats && !statsError) {
+              if (!stats && !statsError && mounted) {
                 console.log('Creating player stats...');
                 await supabase
                   .from('player_stats')
@@ -89,12 +92,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             } catch (error) {
               console.error('Error setting up user data:', error);
             }
-          }, 100);
+          }, 150);
         }
         
         if (event === 'SIGNED_OUT') {
           console.log('User signed out');
         }
+        
+        setLoading(false);
       }
     );
 
@@ -106,20 +111,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('Error getting session:', error);
         } else {
           console.log('Initial session:', session?.user?.email);
-          setSession(session);
-          setUser(session?.user ?? null);
+          if (mounted) {
+            setSession(session);
+            setUser(session?.user ?? null);
+          }
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     initializeAuth();
 
     return () => {
-      console.log('Cleaning up auth listener');
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
