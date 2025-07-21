@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,8 +16,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useSupabaseAuth';
 import { useTaskForge } from '@/hooks/useTaskForge';
 import { RealTimeClock } from './RealTimeClock';
-import React, { Suspense } from 'react';
-const StickerSystem = React.lazy(() => import('./StickerSystem'));
+import { StickerSystem } from './StickerSystem';
 import { CelebrationModal } from './CelebrationModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -104,34 +103,46 @@ export const TaskForgeWithSupabase: React.FC = () => {
   };
 
   const saveProgress = async () => {
-    if (!user) return;
-    let errorMsg = '';
-    // Save playerStats
-    const { error: statsError } = await supabase
-      .from('player_stats')
-      .upsert([
-        {
+    if (!user || !playerStats) return;
+    
+    try {
+      // Save playerStats (single object, not array)
+      const { error: statsError } = await supabase
+        .from('player_stats')
+        .upsert({
           user_id: user.id,
           total_xp: playerStats.total_xp,
           coins: playerStats.coins,
           level: playerStats.level,
           streak: playerStats.streak,
           last_completed_date: playerStats.last_completed_date,
-          // add other fields as needed
-        }
-      ], { onConflict: ['user_id'] });
-    if (statsError) errorMsg += 'Stats: ' + statsError.message + ' ';
+        }, { onConflict: 'user_id' });
 
-    // Save tasks
-    const { error: tasksError } = await supabase
-      .from('tasks')
-      .upsert(tasks.map(task => ({ ...task, user_id: user.id })), { onConflict: ['id'] });
-    if (tasksError) errorMsg += 'Tasks: ' + tasksError.message;
+      if (statsError) throw statsError;
 
-    if (errorMsg) {
-      toast({ title: 'Save Failed', description: errorMsg, variant: 'destructive' });
-    } else {
-      toast({ title: 'Progress Saved!', description: 'Your progress has been saved to the cloud.' });
+      // Save tasks (array with proper conflict resolution)
+      if (tasks.length > 0) {
+        const { error: tasksError } = await supabase
+          .from('tasks')
+          .upsert(
+            tasks.map(task => ({ ...task, user_id: user.id })),
+            { onConflict: 'id' }
+          );
+
+        if (tasksError) throw tasksError;
+      }
+
+      toast({ 
+        title: 'Progress Saved!', 
+        description: 'Your progress has been saved to the cloud.' 
+      });
+    } catch (error: any) {
+      console.error('Save error:', error);
+      toast({ 
+        title: 'Save Failed', 
+        description: error.message, 
+        variant: 'destructive' 
+      });
     }
   };
 
@@ -467,12 +478,10 @@ export const TaskForgeWithSupabase: React.FC = () => {
 
         {/* Stickers and Stats */}
         <div className="space-y-4">
-          <Suspense fallback={<div>Loading stickers...</div>}>
-            <StickerSystem 
-              userLevel={playerStats?.level || 1} 
-              unlockedStickers={unlockedStickers} 
-            />
-          </Suspense>
+          <StickerSystem 
+            userLevel={playerStats?.level || 1} 
+            unlockedStickers={unlockedStickers} 
+          />
 
           <Card className="glass-card">
             <CardHeader>
