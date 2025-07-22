@@ -485,8 +485,10 @@ export const GamifiedTodo: React.FC = () => {
 
           {/* Task List */}
           <div className="space-y-3">
-            {filteredTasks.map((task) => {
+            {filteredTimetableTasks.map((task, idx) => {
               const config = DIFFICULTY_CONFIG[task.difficulty];
+              // Find the matching timetable row by index or by some property
+              const timetableRow = DAILY_TIMETABLE[idx];
               return (
                 <Card key={task.id} className={`glass-card transition-all duration-300 ${
                   task.state === 'completed' ? 'opacity-60' : 
@@ -500,6 +502,10 @@ export const GamifiedTodo: React.FC = () => {
                         {getStateIcon(task.state)}
                         <div>
                           <div className="flex items-center space-x-2">
+                            {/* Show time range here */}
+                            <span className="font-semibold text-xs text-muted-foreground">
+                              {timetableRow?.time}
+                            </span>
                             <p className={`font-medium ${task.state === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
                               {task.title}
                             </p>
