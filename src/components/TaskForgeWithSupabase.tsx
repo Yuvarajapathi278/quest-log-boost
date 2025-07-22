@@ -109,8 +109,8 @@ export const TaskForgeWithSupabase = () => {
 
       toast({ 
         title: '💾 Progress Saved!', 
-        description: 'Your adventure progress has been safely stored in the cloud.',
-        duration: 3000
+        description: 'Your adventure progress has been safely stored.',
+        duration: 2000
       });
     } catch (error: any) {
       console.error('Save operation failed:', error);
@@ -118,7 +118,7 @@ export const TaskForgeWithSupabase = () => {
         title: '❌ Save Failed', 
         description: error.message || 'Unable to save progress. Please try again.', 
         variant: 'destructive',
-        duration: 5000
+        duration: 3000
       });
     } finally {
       setIsSaving(false);
@@ -146,6 +146,7 @@ export const TaskForgeWithSupabase = () => {
       </div>
     );
   }
+
   if (!playerStats || !tasks) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -162,6 +163,20 @@ export const TaskForgeWithSupabase = () => {
   const progressToNext = nextTier && playerStats
     ? ((playerStats.total_xp - currentTier.minXP) / (nextTier.minXP - currentTier.minXP)) * 100
     : 100;
+
+  // Separate daily timetable tasks from custom tasks
+  const dailyTasks = tasks.filter(task => task.is_daily_timetable);
+  const customTasks = tasks.filter(task => !task.is_daily_timetable);
+  
+  const filteredDailyTasks = dailyTasks.filter(task => {
+    if (filter === 'all') return true;
+    return task.state === filter;
+  });
+  
+  const filteredCustomTasks = customTasks.filter(task => {
+    if (filter === 'all') return true;
+    return task.state === filter;
+  });
 
   return (
     <div className="min-h-screen p-2 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
@@ -255,13 +270,55 @@ export const TaskForgeWithSupabase = () => {
         <div className="lg:col-span-2 space-y-4">
           <TaskCreator onCreateTask={createTask} />
           <TaskFilters filter={filter} onFilterChange={setFilter} />
-          <TaskList
-            tasks={filteredTasks}
-            onStartTask={startTask}
-            onCompleteTask={completeTask}
-            onRevertTask={revertTask}
-            onDeleteTask={deleteTask}
-          />
+          
+          {/* Daily Timetable Section */}
+          {filteredDailyTasks.length > 0 && (
+            <Card className="glass-card">
+              <CardContent className="p-4">
+                <h3 className="text-lg font-semibold mb-3 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  📅 Daily Timetable
+                </h3>
+                <div className="space-y-3">
+                  <TaskList
+                    tasks={filteredDailyTasks}
+                    onStartTask={startTask}
+                    onCompleteTask={completeTask}
+                    onRevertTask={revertTask}
+                    onDeleteTask={deleteTask}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Custom Tasks Section */}
+          {filteredCustomTasks.length > 0 && (
+            <Card className="glass-card">
+              <CardContent className="p-4">
+                <h3 className="text-lg font-semibold mb-3 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  🎯 Custom Quests
+                </h3>
+                <div className="space-y-3">
+                  <TaskList
+                    tasks={filteredCustomTasks}
+                    onStartTask={startTask}
+                    onCompleteTask={completeTask}
+                    onRevertTask={revertTask}
+                    onDeleteTask={deleteTask}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Show message when no tasks are found */}
+          {filteredDailyTasks.length === 0 && filteredCustomTasks.length === 0 && (
+            <Card className="glass-card">
+              <CardContent className="p-8 text-center">
+                <p className="text-muted-foreground">No tasks found for this filter.</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Stickers and Stats - Mobile Responsive */}

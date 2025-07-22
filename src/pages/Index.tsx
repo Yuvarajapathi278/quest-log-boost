@@ -11,6 +11,7 @@ const Index = () => {
     console.log('Index page - User:', user?.email, 'Loading:', loading);
   }, [user, loading]);
 
+  // Show loading spinner while auth is initializing
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
@@ -25,11 +26,13 @@ const Index = () => {
     );
   }
 
+  // Show auth page if no user
   if (!user) {
     console.log('No user found, showing auth page');
     return <Auth onAuthSuccess={() => console.log('Auth success callback')} />;
   }
 
+  // Show main app if user is authenticated
   console.log('User authenticated, showing main app');
   return <TaskForgeWithSupabase />;
 };

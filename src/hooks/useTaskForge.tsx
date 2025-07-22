@@ -18,8 +18,8 @@ export interface Task {
   completed_at?: string;
   deadline?: string;
   user_id: string;
-  is_daily_timetable?: boolean; // Added for daily timetable tasks
-  focus?: string; // Added for daily timetable tasks
+  is_daily_timetable?: boolean;
+  focus?: string;
 }
 
 export interface PlayerStats {
@@ -46,7 +46,7 @@ const DAILY_TIMETABLE = [
   { time: "8:00 – 8:20 AM", activity: "🍽️ Breakfast + Brain Prep", focus: "Listen to podcast (Tech/CS/Atomic Habits style)", difficulty: 'easy' },
   { time: "8:20 – 9:20 AM", activity: "⚡ Light DSA / Revision (optional)", focus: "1 problem or 1 concept — just 30 mins to warm up", difficulty: 'medium' },
   { time: "9:30 – 5:00 PM", activity: "👨‍💻 Office Hours", focus: "Work + Save mental energy (no burnout)", difficulty: 'medium' },
-  { time: "5:00 – 6:00 PM", activity: "😴 Nap / Rest Mode", focus: "Your body’s power hour. No guilt. Energy bank.", difficulty: 'easy' },
+  { time: "5:00 – 6:00 PM", activity: "😴 Nap / Rest Mode", focus: "Your body's power hour. No guilt. Energy bank.", difficulty: 'easy' },
   { time: "6:00 – 7:30 PM", activity: "🔥 DSA GRIND MODE", focus: "NeetCode or topic grind (1–2 problems/day)", difficulty: 'hard' },
   { time: "7:30 – 8:00 PM", activity: "🚀 System Design Concepts", focus: "1 concept/day (watch + journal)", difficulty: 'medium' },
   { time: "8:00 – 8:30 PM", activity: "🍽️ Dinner + Chill", focus: "Light YouTube, music, walk — no code", difficulty: 'easy' },
@@ -60,6 +60,7 @@ export const useTaskForge = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [dailyTasksCreated, setDailyTasksCreated] = useState(false);
   const [celebrationData, setCelebrationData] = useState<{
     isOpen: boolean;
     quote: any;
@@ -175,7 +176,7 @@ export const useTaskForge = () => {
     enabled: !!user,
   });
 
-  // Enhanced create task mutation
+  // Enhanced create task mutation with reduced toast notifications
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: Omit<Task, 'id' | 'created_at' | 'user_id'>) => {
       if (!user) throw new Error('User not authenticated');
@@ -195,12 +196,16 @@ export const useTaskForge = () => {
       console.log('✅ Task created successfully');
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      toast({
-        title: "🎯 Quest Added!",
-        description: "New challenge awaits completion!",
-      });
+      // Only show toast for manually created tasks, not daily timetable
+      if (!variables.is_daily_timetable) {
+        toast({
+          title: "🎯 Quest Added!",
+          description: "New challenge awaits completion!",
+          duration: 2000
+        });
+      }
     },
     onError: (error: any) => {
       console.error('Create task error:', error);
@@ -208,6 +213,7 @@ export const useTaskForge = () => {
         title: "❌ Failed to Create Quest",
         description: error.message || "Please try again.",
         variant: "destructive",
+        duration: 3000
       });
     },
   });
@@ -240,6 +246,7 @@ export const useTaskForge = () => {
         title: "❌ Failed to Update Quest",
         description: error.message || "Please try again.",
         variant: "destructive",
+        duration: 3000
       });
     },
   });
@@ -259,6 +266,7 @@ export const useTaskForge = () => {
       toast({
         title: "Quest Removed",
         description: "Task has been deleted from your quest log.",
+        duration: 2000
       });
     },
     onError: (error) => {
@@ -267,6 +275,7 @@ export const useTaskForge = () => {
         title: "Failed to Delete Quest",
         description: "Please try again.",
         variant: "destructive",
+        duration: 3000
       });
     },
   });
@@ -301,6 +310,7 @@ export const useTaskForge = () => {
         title: "❌ Failed to Update Stats",
         description: error.message || "Progress may not be saved.",
         variant: "destructive",
+        duration: 3000
       });
     },
   });
@@ -345,6 +355,7 @@ export const useTaskForge = () => {
         toast({
           title: `🎉 New Sticker Unlocked!`,
           description: `${sticker.emoji} ${sticker.name} - ${sticker.description}`,
+          duration: 3000
         });
       } catch (error) {
         console.log('Sticker already unlocked or error:', error);
@@ -352,12 +363,64 @@ export const useTaskForge = () => {
     }
   };
 
+  // Add daily timetable tasks function
+  const addDailyTimetableTasks = async () => {
+    if (!user || dailyTasksCreated) return;
+    
+    console.log('🗓️ Adding daily timetable tasks...');
+    
+    // Check if daily tasks already exist for today
+    const today = new Date().toDateString();
+    const existingDailyTasks = tasks.filter(task => 
+      task.is_daily_timetable && 
+      new Date(task.created_at).toDateString() === today
+    );
+
+    if (existingDailyTasks.length > 0) {
+      console.log('📅 Daily tasks already exist for today');
+      setDailyTasksCreated(true);
+      return;
+    }
+
+    // Create daily timetable tasks
+    try {
+      const taskPromises = DAILY_TIMETABLE.map(item => 
+        createTaskMutation.mutateAsync({
+          title: `${item.time} - ${item.activity}`,
+          category: 'Daily Routine',
+          difficulty: item.difficulty as 'easy' | 'medium' | 'hard' | 'boss',
+          state: 'todo',
+          is_default: true,
+          is_daily_timetable: true,
+          focus: item.focus
+        })
+      );
+
+      await Promise.all(taskPromises);
+      console.log('✅ All daily tasks created successfully');
+      setDailyTasksCreated(true);
+    } catch (error) {
+      console.error('Failed to create daily tasks:', error);
+    }
+  };
+
+  // Add daily tasks when user and tasks are loaded
+  useEffect(() => {
+    if (user && tasks.length >= 0 && !dailyTasksCreated && !tasksLoading) {
+      const dailyTasksExist = tasks.some(task => task.is_daily_timetable);
+      if (!dailyTasksExist) {
+        addDailyTimetableTasks();
+      } else {
+        setDailyTasksCreated(true);
+      }
+    }
+  }, [user, tasks, dailyTasksCreated, tasksLoading]);
+
   // Complete task function with motivational quotes
   const completeTask = async (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task || task.state !== 'inprogress' || !playerStats) return;
 
-    // Use DIFFICULTY_CONFIG for XP/coins, even for daily timetable quests
     const config = DIFFICULTY_CONFIG[task.difficulty] || DIFFICULTY_CONFIG['easy'];
     const newXP = playerStats.total_xp + config.xp;
     const newCoins = playerStats.coins + config.coins;
@@ -399,6 +462,7 @@ export const useTaskForge = () => {
         toast({
           title: `🎉 Level Up! Level ${newLevel}`,
           description: `You've gained incredible power!`,
+          duration: 4000
         });
 
         // Check for new stickers
@@ -429,33 +493,10 @@ export const useTaskForge = () => {
         title: "❌ Failed to Complete Quest",
         description: error.message || "Please try again.",
         variant: "destructive",
+        duration: 3000
       });
     }
   };
-
-  // Add daily reset logic at 2:30 AM
-  useEffect(() => {
-    if (!user) return;
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 2, 30, 0, 0); // 2:30 AM today
-    let lastReset = localStorage.getItem('lastDailyReset');
-    let lastResetDate = lastReset ? new Date(lastReset) : null;
-    if (!lastResetDate || now > today && (!lastResetDate || lastResetDate < today)) {
-      // Remove all daily timetable quests (but keep manual quests)
-      // This part of the logic needs to be handled by the frontend state,
-      // as the backend query is not directly modifiable here.
-      // For now, we'll rely on the frontend's `tasks` state to filter out
-      // the daily timetable tasks when the reset happens.
-      // The `tasks` state is managed by the `useQuery` hook, so we need to
-      // re-fetch or manage the state manually if we want to remove them.
-      // A simpler approach for now is to just re-fetch the tasks after the reset.
-      // This will trigger the `useQuery` hook to refetch and potentially
-      // re-add the daily timetable tasks if they were somehow persisted.
-      // For now, we'll just re-fetch to ensure consistency.
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      localStorage.setItem('lastDailyReset', now.toISOString());
-    }
-  }, [user]);
 
   // Enhanced error logging
   useEffect(() => {
@@ -465,6 +506,7 @@ export const useTaskForge = () => {
         title: "❌ Error Loading Tasks",
         description: "Please check your connection and try refreshing.",
         variant: "destructive",
+        duration: 5000
       });
     }
     if (statsError) {
@@ -473,6 +515,7 @@ export const useTaskForge = () => {
         title: "❌ Error Loading Stats",
         description: "Please check your connection and try refreshing.",
         variant: "destructive",
+        duration: 5000
       });
     }
   }, [tasksError, statsError, toast]);
@@ -515,6 +558,7 @@ export const useTaskForge = () => {
         toast({
           title: "↩️ Quest Reverted",
           description: `Task moved back to To Do. -${config.xp} XP, -${config.coins} coins.`,
+          duration: 2000
         });
         
         console.log('✅ Task reverted successfully');
@@ -524,6 +568,7 @@ export const useTaskForge = () => {
           title: "❌ Failed to Revert Quest",
           description: error.message || "Please try again.",
           variant: "destructive",
+          duration: 3000
         });
       }
     }
