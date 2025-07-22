@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,6 +60,7 @@ export const useTaskForge = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [dailyTasksCreated, setDailyTasksCreated] = useState(false);
   const [celebrationData, setCelebrationData] = useState<{
     isOpen: boolean;
     quote: any;
@@ -363,9 +363,9 @@ export const useTaskForge = () => {
     }
   };
 
-  // Add daily timetable tasks on first load and after daily reset
+  // Add daily timetable tasks function
   const addDailyTimetableTasks = async () => {
-    if (!user) return;
+    if (!user || dailyTasksCreated) return;
     
     console.log('🗓️ Adding daily timetable tasks...');
     
@@ -378,13 +378,14 @@ export const useTaskForge = () => {
 
     if (existingDailyTasks.length > 0) {
       console.log('📅 Daily tasks already exist for today');
+      setDailyTasksCreated(true);
       return;
     }
 
     // Create daily timetable tasks
-    for (const item of DAILY_TIMETABLE) {
-      try {
-        await createTaskMutation.mutateAsync({
+    try {
+      const taskPromises = DAILY_TIMETABLE.map(item => 
+        createTaskMutation.mutateAsync({
           title: `${item.time} - ${item.activity}`,
           category: 'Daily Routine',
           difficulty: item.difficulty as 'easy' | 'medium' | 'hard' | 'boss',
@@ -392,58 +393,28 @@ export const useTaskForge = () => {
           is_default: true,
           is_daily_timetable: true,
           focus: item.focus
-        });
-      } catch (error) {
-        console.error('Failed to create daily task:', error);
-      }
+        })
+      );
+
+      await Promise.all(taskPromises);
+      console.log('✅ All daily tasks created successfully');
+      setDailyTasksCreated(true);
+    } catch (error) {
+      console.error('Failed to create daily tasks:', error);
     }
   };
 
-  // Daily reset logic at 2:30 AM - only for timetable tasks
+  // Add daily tasks when user and tasks are loaded
   useEffect(() => {
-    if (!user) return;
-    
-    const checkDailyReset = async () => {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 2, 30, 0, 0);
-      let lastReset = localStorage.getItem('lastDailyReset');
-      let lastResetDate = lastReset ? new Date(lastReset) : null;
-      
-      if (!lastResetDate || (now > today && (!lastResetDate || lastResetDate < today))) {
-        console.log('🔄 Daily reset triggered - removing old timetable tasks');
-        
-        // Remove only daily timetable tasks
-        const dailyTasks = tasks.filter(task => task.is_daily_timetable);
-        for (const task of dailyTasks) {
-          try {
-            await supabase.from('tasks').delete().eq('id', task.id);
-          } catch (error) {
-            console.error('Error removing daily task:', error);
-          }
-        }
-        
-        // Refetch tasks and add new daily tasks
-        await queryClient.invalidateQueries({ queryKey: ['tasks'] });
-        setTimeout(() => addDailyTimetableTasks(), 1000);
-        
-        localStorage.setItem('lastDailyReset', now.toISOString());
-      }
-    };
-
-    checkDailyReset();
-    const interval = setInterval(checkDailyReset, 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, [user, tasks]);
-
-  // Add daily tasks on first load
-  useEffect(() => {
-    if (user && tasks.length >= 0) {
+    if (user && tasks.length >= 0 && !dailyTasksCreated && !tasksLoading) {
       const dailyTasksExist = tasks.some(task => task.is_daily_timetable);
       if (!dailyTasksExist) {
         addDailyTimetableTasks();
+      } else {
+        setDailyTasksCreated(true);
       }
     }
-  }, [user, tasks]);
+  }, [user, tasks, dailyTasksCreated, tasksLoading]);
 
   // Complete task function with motivational quotes
   const completeTask = async (taskId: string) => {
