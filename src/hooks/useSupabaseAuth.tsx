@@ -37,6 +37,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     console.log('Setting up auth state listener...');
     
+    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
@@ -49,7 +50,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('User signed in successfully');
           
-          // Use a longer delay to prevent deadlock issues
+          // Use setTimeout to prevent blocking the auth flow
           setTimeout(async () => {
             if (!mounted) return;
             
@@ -97,25 +98,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             } catch (error) {
               console.error('Error setting up user data:', error);
             }
-          }, 200);
+          }, 100);
         }
         
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setSession(null);
-          // Optionally reset other app state here
           console.log('User signed out');
         }
         
+        // Always set loading to false after processing auth state change
         setLoading(false);
       }
     );
 
-    // Initialize auth state
+    // Get initial session
     const initializeAuth = async () => {
       try {
         console.log('Checking for existing session...');
         const { data: { session }, error } = await supabase.auth.getSession();
+        
         if (error) {
           console.error('Error getting session:', error);
         } else {
