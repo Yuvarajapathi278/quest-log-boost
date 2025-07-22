@@ -16,6 +16,7 @@ export interface Task {
   difficulty: 'easy' | 'medium' | 'hard' | 'boss';
   state: 'todo' | 'inprogress' | 'completed' | 'missed';
   isDefault: boolean;
+  is_daily_timetable?: boolean;
   createdAt: Date;
   completedAt?: Date;
   deadline?: Date;
@@ -285,6 +286,14 @@ export const GamifiedTodo: React.FC = () => {
   };
 
   const filteredTasks = tasks.filter(task => {
+    if (filter === 'all') return true;
+    return task.state === filter;
+  });
+
+  const timetableTasks = tasks.filter(task => task.is_daily_timetable);
+
+  // If you want to filter by state as well:
+  const filteredTimetableTasks = timetableTasks.filter(task => {
     if (filter === 'all') return true;
     return task.state === filter;
   });
