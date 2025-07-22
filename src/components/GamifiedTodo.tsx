@@ -45,6 +45,31 @@ const TIER_BADGES = [
   { name: 'Ultra', minXP: 1000, color: 'text-ultra', icon: '⭐' }
 ];
 
+const DAILY_TIMETABLE = [
+  { time: "7:20 – 8:00 AM", activity: "🛌 Wake up + Clean Up", focus: "No phone. Hydrate. Touch grass (or desk)." },
+  { time: "8:00 – 8:20 AM", activity: "🍽️ Breakfast + Brain Prep", focus: "Listen to podcast (Tech/CS/Atomic Habits style)" },
+  { time: "8:20 – 9:20 AM", activity: "⚡ Light DSA / Revision (optional)", focus: "1 problem or 1 concept — just 30 mins to warm up" },
+  { time: "9:30 – 5:00 PM", activity: "👨‍💻 Office Hours", focus: "Work + Save mental energy (no burnout)" },
+  { time: "5:00 – 6:00 PM", activity: "😴 Nap / Rest Mode", focus: "Your body’s power hour. No guilt. Energy bank." },
+  { time: "6:00 – 7:30 PM", activity: "🔥 DSA GRIND MODE", focus: "NeetCode or topic grind (1–2 problems/day)" },
+  { time: "7:30 – 8:00 PM", activity: "🚀 System Design Concepts", focus: "1 concept/day (watch + journal)" },
+  { time: "8:00 – 8:30 PM", activity: "🍽️ Dinner + Chill", focus: "Light YouTube, music, walk — no code" },
+  { time: "8:30 – 10:15 PM", activity: "📱 Flutter Project Grind", focus: "Build your app → resume value + GitHub juice" },
+  { time: "10:15 – 11:30 PM", activity: "🧠 Mock / Review / Interview Prep", focus: "Solve 1 mock DSA Q OR review past topics" },
+  { time: "11:30 – 12:30 AM", activity: "🧘 Wind down + Rituals", focus: "Read 5 pages, stretch, light journaling" },
+  { time: "1:00 AM – 7:20 AM", activity: "😴 Sleep Mode", focus: "Let the brain defrag & reboot" }
+];
+
+// Helper to get today's key for localStorage
+function getTimetableKey() {
+  const now = new Date();
+  // If before 2:30 AM, use yesterday's date
+  if (now.getHours() < 2 || (now.getHours() === 2 && now.getMinutes() < 30)) {
+    now.setDate(now.getDate() - 1);
+  }
+  return now.toISOString().slice(0, 10);
+}
+
 export const GamifiedTodo: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -58,6 +83,37 @@ export const GamifiedTodo: React.FC = () => {
     streak: 0
   });
   const { toast } = useToast();
+
+  // Timetable progress state
+  const [timetableProgress, setTimetableProgress] = useState<Record<number, boolean>>(() => {
+    const saved = localStorage.getItem("timetableProgress");
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [timetableKey, setTimetableKey] = useState(getTimetableKey());
+
+  // Reset timetable at 2:30 AM daily
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newKey = getTimetableKey();
+      if (newKey !== timetableKey) {
+        setTimetableKey(newKey);
+        setTimetableProgress({});
+      }
+    }, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [timetableKey]);
+
+  useEffect(() => {
+    localStorage.setItem("timetableProgress", JSON.stringify(timetableProgress));
+  }, [timetableProgress]);
+
+  // Mark timetable activity as done
+  function markTimetableDone(idx: number) {
+    setTimetableProgress(prev => ({
+      ...prev,
+      [idx]: true
+    }));
+  }
 
   // Check for missed tasks at end of day
   useEffect(() => {
@@ -241,6 +297,41 @@ export const GamifiedTodo: React.FC = () => {
 
   return (
     <div className="min-h-screen p-4 space-y-6">
+      {/* --- Timetable Section --- */}
+      <Card className="glass-card mb-6">
+        <CardHeader>
+          <CardTitle>Daily Timetable</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <table className="w-full text-left">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Activity</th>
+                <th>Focus</th>
+                <th>Done</th>
+              </tr>
+            </thead>
+            <tbody>
+              {DAILY_TIMETABLE.map((row, idx) => (
+                <tr key={idx}>
+                  <td>{row.time}</td>
+                  <td>{row.activity}</td>
+                  <td>{row.focus}</td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={!!timetableProgress[idx]}
+                      onChange={() => markTimetableDone(idx)}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+
       {/* Header Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="glass-card">
