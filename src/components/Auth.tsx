@@ -1,289 +1,207 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Mail, Lock, User, Zap } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface AuthProps {
   onAuthSuccess: () => void;
 }
 
-export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
+export const Auth = ({ onAuthSuccess }: AuthProps) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
   const { toast } = useToast();
 
-  const handleSignUp = async () => {
-    if (!email || !password || !username) {
+  const validateForm = () => {
+    if (!email || !password) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all fields.",
+        description: "Please fill in all required fields.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (password.length < 6) {
       toast({
-        title: "Password Too Short",
+        title: "Weak Password",
         description: "Password must be at least 6 characters long.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
-    setLoading(true);
-    try {
-      console.log('Starting sign up process...');
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            username
-          }
-        }
+    if (isSignUp && password !== confirmPassword) {
+      toast({
+        title: "Password Mismatch",
+        description: "Passwords do not match.",
+        variant: "destructive",
       });
+      return false;
+    }
 
-      if (error) {
-        console.error('Sign up error:', error);
-        throw error;
-      }
+    return true;
+  };
 
-      console.log('Sign up successful:', data);
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
 
-      if (data.user && !data.session) {
+    setIsLoading(true);
+    
+    try {
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        
+        if (error) throw error;
+        
         toast({
-          title: "Check Your Email",
-          description: "We've sent you a confirmation link. Please check your email and click the link to complete your registration.",
+          title: "Account Created! 🎉",
+          description: "Please check your email to verify your account.",
+          duration: 5000
         });
       } else {
-        toast({
-          title: "Welcome to TaskForge! 🎉",
-          description: "Account created successfully! You can now start your quest!",
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
         });
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Welcome Back! 🚀",
+          description: "Successfully signed in to TaskForge.",
+          duration: 3000
+        });
+        
         onAuthSuccess();
       }
     } catch (error: any) {
-      console.error('Sign up error:', error);
-      let errorMessage = "An unexpected error occurred. Please try again.";
-      
-      if (error.message.includes('already registered')) {
-        errorMessage = "This email is already registered. Please try signing in instead.";
-      } else if (error.message.includes('Invalid email')) {
-        errorMessage = "Please enter a valid email address.";
-      } else if (error.message.includes('Password')) {
-        errorMessage = "Password must be at least 6 characters long.";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
+      console.error('Auth error:', error);
       toast({
-        title: "Sign Up Failed",
-        description: errorMessage,
+        title: isSignUp ? "Sign Up Failed" : "Sign In Failed",
+        description: error.message || "An unexpected error occurred.",
         variant: "destructive",
+        duration: 4000
       });
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignIn = async () => {
-    if (!email || !password) {
-      toast({
-        title: "Missing Information",
-        description: "Please enter email and password.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      console.log('Starting sign in process...');
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error('Sign in error:', error);
-        throw error;
-      }
-
-      console.log('Sign in successful:', data);
-
-      toast({
-        title: "Welcome Back! ⚡",
-        description: "Successfully signed in to TaskForge!",
-      });
-      onAuthSuccess();
-    } catch (error: any) {
-      console.error('Sign in error:', error);
-      let errorMessage = "An unexpected error occurred. Please try again.";
-      
-      if (error.message.includes('Invalid login credentials')) {
-        errorMessage = "Invalid email or password. Please check your credentials and try again.";
-      } else if (error.message.includes('Email not confirmed')) {
-        errorMessage = "Please confirm your email address before signing in.";
-      } else if (error.message.includes('Invalid email')) {
-        errorMessage = "Please enter a valid email address.";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      toast({
-        title: "Sign In Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <Card className="w-full max-w-md glass-card animate-fade-in">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center mb-4">
-            <div className="p-3 rounded-full primary-gradient animate-pulse">
-              <Zap className="h-8 w-8 text-white" />
-            </div>
-          </div>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-secondary/20 to-accent/10">
+      <Card className="w-full max-w-md glass-card">
+        <CardHeader className="text-center space-y-2">
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             TaskForge
           </CardTitle>
-          <p className="text-muted-foreground">
-            Level up your productivity with gamified tasks
-          </p>
+          <CardDescription className="text-base">
+            {isSignUp ? 'Create your account to start your quest!' : 'Welcome back, warrior! Ready to level up?'}
+          </CardDescription>
         </CardHeader>
+        
         <CardContent className="space-y-6">
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
+          <form onSubmit={handleAuth} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium">
+                Email Address
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="warrior@taskforge.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+                className="w-full"
+                required
+              />
+            </div>
             
-            <TabsContent value="signin" className="space-y-4 mt-6">
-              <div className="space-y-2">
-                <Label htmlFor="signin-email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="signin-email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="signin-password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="signin-password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-              <Button 
-                onClick={handleSignIn} 
-                disabled={loading}
-                className="w-full primary-gradient h-12 text-base"
-              >
-                {loading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Signing In...</span>
-                  </div>
-                ) : (
-                  "Sign In"
-                )}
-              </Button>
-            </TabsContent>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-medium">
+                Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                className="w-full"
+                required
+                minLength={6}
+              />
+            </div>
             
-            <TabsContent value="signup" className="space-y-4 mt-6">
+            {isSignUp && (
               <div className="space-y-2">
-                <Label htmlFor="signup-username">Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="signup-username"
-                    type="text"
-                    placeholder="Choose a username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="pl-10"
-                    disabled={loading}
-                  />
-                </div>
+                <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                  Confirm Password
+                </Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full"
+                  required
+                  minLength={6}
+                />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="signup-email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="signup-password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    placeholder="Create a password (min 6 characters)"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-              <Button 
-                onClick={handleSignUp} 
-                disabled={loading}
-                className="w-full primary-gradient h-12 text-base"
-              >
-                {loading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Creating Account...</span>
-                  </div>
-                ) : (
-                  "Create Account"
-                )}
-              </Button>
-            </TabsContent>
-          </Tabs>
+            )}
+            
+            <Button 
+              type="submit" 
+              className="w-full h-11 text-base font-semibold"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  {isSignUp ? 'Creating Account...' : 'Signing In...'}
+                </>
+              ) : (
+                <>
+                  {isSignUp ? 'Create Account 🚀' : 'Sign In ⚡'}
+                </>
+              )}
+            </Button>
+          </form>
+          
+          <div className="text-center pt-4 border-t">
+            <p className="text-sm text-muted-foreground mb-3">
+              {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+            </p>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setPassword('');
+                setConfirmPassword('');
+              }}
+              disabled={isLoading}
+              className="text-primary hover:text-primary/80 font-medium"
+            >
+              {isSignUp ? 'Sign In Instead' : 'Create New Account'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
