@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -57,21 +56,36 @@ export const TaskList: React.FC<TaskListProps> = ({
       {tasks.map((task) => {
         const config = DIFFICULTY_CONFIG[task.difficulty];
         return (
-          <Card key={task.id} className={`glass-card transition-all duration-300 hover-scale ${
-            task.state === 'completed' ? 'opacity-60' : 
-            task.state === 'missed' ? 'border-red-500/50 bg-red-500/5' :
-            task.state === 'inprogress' ? 'border-blue-500/50 bg-blue-500/5' :
-            'hover:scale-[1.02]'
-          }`}>
+          <Card
+            key={task.id}
+            className={`glass-card transition-all duration-300 hover-scale ${
+              task.state === 'completed'
+                ? 'opacity-60'
+                : task.state === 'missed'
+                ? 'border-red-500/50 bg-red-500/5'
+                : task.state === 'inprogress'
+                ? 'border-blue-500/50 bg-blue-500/5'
+                : 'hover:scale-[1.02]'
+            }`}
+          >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   {getStateIcon(task.state)}
                   <div>
                     <div className="flex items-center space-x-2">
-                      <p className={`font-medium ${task.state === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
+                      <p
+                        className={`font-medium ${
+                          task.state === 'completed' ? 'line-through text-muted-foreground' : ''
+                        }`}
+                      >
                         {task.title}
                       </p>
+                      {task.state === 'completed' && task.completed_at && (
+                        <span className="text-xs text-green-500 ml-1">
+                          ✔️ {task.completed_at}
+                        </span>
+                      )}
                       {task.is_default && (
                         <Badge variant="outline" className="text-xs">
                           Daily
@@ -97,7 +111,7 @@ export const TaskList: React.FC<TaskListProps> = ({
                   <Badge variant="outline" className="text-xs">
                     {getStateLabel(task.state)}
                   </Badge>
-                  
+
                   {task.state === 'todo' && (
                     <>
                       <Button
@@ -117,7 +131,7 @@ export const TaskList: React.FC<TaskListProps> = ({
                       </Button>
                     </>
                   )}
-                  
+
                   {task.state === 'inprogress' && (
                     <>
                       <Button
@@ -137,7 +151,7 @@ export const TaskList: React.FC<TaskListProps> = ({
                       </Button>
                     </>
                   )}
-                  
+
                   {task.state === 'completed' && (
                     <>
                       <Button
@@ -166,3 +180,5 @@ export const TaskList: React.FC<TaskListProps> = ({
     </div>
   );
 };
+
+export default TaskList;
