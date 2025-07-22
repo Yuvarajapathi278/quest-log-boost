@@ -290,9 +290,11 @@ export const GamifiedTodo: React.FC = () => {
     return task.state === filter;
   });
 
-  const timetableTasks = tasks.filter(task => task.is_daily_timetable);
+  // Filtering and sorting logic
+  const timetableTasks = tasks
+    .filter(task => task.is_daily_timetable)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-  // If you want to filter by state as well:
   const filteredTimetableTasks = timetableTasks.filter(task => {
     if (filter === 'all') return true;
     return task.state === filter;
