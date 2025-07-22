@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Plus, Trophy, Coins, Zap, Target, Calendar, Filter, Play, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, Trophy, Coins, Zap, Target, Calendar, Filter, Play, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import confetti from 'canvas-confetti';
 
@@ -64,7 +64,6 @@ const DAILY_TIMETABLE = [
 // Helper to get today's key for localStorage
 function getTimetableKey() {
   const now = new Date();
-  // If before 2:30 AM, use yesterday's date
   if (now.getHours() < 2 || (now.getHours() === 2 && now.getMinutes() < 30)) {
     now.setDate(now.getDate() - 1);
   }
@@ -100,7 +99,7 @@ export const GamifiedTodo: React.FC = () => {
         setTimetableKey(newKey);
         setTimetableProgress({});
       }
-    }, 60000); // Check every minute
+    }, 60000);
     return () => clearInterval(interval);
   }, [timetableKey]);
 
@@ -108,7 +107,6 @@ export const GamifiedTodo: React.FC = () => {
     localStorage.setItem("timetableProgress", JSON.stringify(timetableProgress));
   }, [timetableProgress]);
 
-  // Mark timetable activity as done
   function markTimetableDone(idx: number) {
     setTimetableProgress(prev => ({
       ...prev,
@@ -116,15 +114,13 @@ export const GamifiedTodo: React.FC = () => {
     }));
   }
 
-  // Check for missed tasks at end of day
   useEffect(() => {
     const checkMissedTasks = () => {
       const now = new Date();
       const today = now.toDateString();
-      
       if (playerStats.lastDayChecked === today) return;
 
-      const missedTasks = tasks.filter(task => 
+      const missedTasks = tasks.filter(task =>
         task.deadline &&
         task.deadline < now &&
         (task.state === 'todo' || task.state === 'inprogress')
@@ -133,11 +129,11 @@ export const GamifiedTodo: React.FC = () => {
       if (missedTasks.length > 0) {
         let totalPenalty = 0;
         missedTasks.forEach(task => {
-          totalPenalty += 5; // 5 XP penalty per missed task
+          totalPenalty += 5;
         });
 
-        setTasks(prev => prev.map(task => 
-          missedTasks.includes(task) 
+        setTasks(prev => prev.map(task =>
+          missedTasks.includes(task)
             ? { ...task, state: 'missed' as const }
             : task
         ));
@@ -145,7 +141,7 @@ export const GamifiedTodo: React.FC = () => {
         setPlayerStats(prev => ({
           ...prev,
           totalXP: Math.max(0, prev.totalXP - totalPenalty),
-          streak: 0, // Break streak
+          streak: 0,
           lastDayChecked: today
         }));
 
@@ -155,7 +151,6 @@ export const GamifiedTodo: React.FC = () => {
           variant: "destructive",
         });
 
-        // Failure animation
         document.body.style.animation = 'shake 0.5s ease-in-out';
         setTimeout(() => {
           document.body.style.animation = '';
@@ -163,21 +158,19 @@ export const GamifiedTodo: React.FC = () => {
       }
     };
 
-    const interval = setInterval(checkMissedTasks, 60000); // Check every minute
+    const interval = setInterval(checkMissedTasks, 60000);
     return () => clearInterval(interval);
   }, [tasks, playerStats.lastDayChecked, toast]);
 
-  // Calculate level from XP
   useEffect(() => {
     const newLevel = Math.floor(playerStats.totalXP / 100) + 1;
     if (newLevel > playerStats.level) {
-      // Level up animation and sound
       confetti({
         particleCount: 150,
         spread: 70,
         origin: { y: 0.6 }
       });
-      
+
       const currentTier = getCurrentTier();
       toast({
         title: `🎉 Level Up! Level ${newLevel}`,
@@ -217,7 +210,7 @@ export const GamifiedTodo: React.FC = () => {
     setTasks(prev => prev.map(task =>
       task.id === taskId ? { ...task, state: 'inprogress' as const } : task
     ));
-    
+
     toast({
       title: "Task Started!",
       description: "Good luck on your quest!",
@@ -231,18 +224,16 @@ export const GamifiedTodo: React.FC = () => {
     const config = DIFFICULTY_CONFIG[task.difficulty];
     const newXP = playerStats.totalXP + config.xp;
     const newCoins = playerStats.coins + config.coins;
-    
-    // Update task
-    setTasks(prev => prev.map(t => 
-      t.id === taskId 
+
+    setTasks(prev => prev.map(t =>
+      t.id === taskId
         ? { ...t, state: 'completed' as const, completedAt: new Date() }
         : t
     ));
 
-    // Update stats and streak
     const today = new Date();
-    const completedToday = tasks.some(t => 
-      t.state === 'completed' && 
+    const completedToday = tasks.some(t =>
+      t.state === 'completed' &&
       t.completedAt?.toDateString() === today.toDateString()
     );
 
@@ -254,7 +245,6 @@ export const GamifiedTodo: React.FC = () => {
       lastCompletedDate: today
     }));
 
-    // Success animation
     confetti({
       particleCount: 50,
       spread: 50,
@@ -285,24 +275,25 @@ export const GamifiedTodo: React.FC = () => {
     }
   };
 
-  const filteredTasks = tasks.filter(task => {
-    if (filter === 'all') return true;
-    return task.state === filter;
+  // Only timetable tasks, sorted by time in DAILY_TIMETABLE order
+  const timetableTasks = DAILY_TIMETABLE.map((row) => {
+    // Find the matching task for this timetable row
+    const task = tasks.find(
+      t => t.is_daily_timetable && (t.title === row.activity || t.category === row.activity)
+    );
+    return { ...row, task };
   });
 
-  // Filtering and sorting logic
-  const timetableTasks = tasks
-    .filter(task => task.is_daily_timetable)
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-  const filteredTimetableTasks = timetableTasks.filter(task => {
+  // Filter by state if needed
+  const filteredTimetableTasks = timetableTasks.filter(({ task }) => {
+    if (!task) return false;
     if (filter === 'all') return true;
     return task.state === filter;
   });
 
   const currentTier = getCurrentTier();
   const nextTier = getNextTier();
-  const progressToNext = nextTier 
+  const progressToNext = nextTier
     ? ((playerStats.totalXP - currentTier.minXP) / (nextTier.minXP - currentTier.minXP)) * 100
     : 100;
 
@@ -345,6 +336,7 @@ export const GamifiedTodo: React.FC = () => {
 
       {/* Header Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* ...stats cards unchanged... */}
         <Card className="glass-card">
           <CardContent className="p-4 flex items-center space-x-3">
             <div className="p-2 rounded-full xp-gradient">
@@ -356,7 +348,6 @@ export const GamifiedTodo: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-
         <Card className="glass-card">
           <CardContent className="p-4 flex items-center space-x-3">
             <div className="p-2 rounded-full coin-gradient">
@@ -368,7 +359,6 @@ export const GamifiedTodo: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-
         <Card className="glass-card">
           <CardContent className="p-4 flex items-center space-x-3">
             <div className="p-2 rounded-full primary-gradient">
@@ -382,7 +372,6 @@ export const GamifiedTodo: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-
         <Card className="glass-card">
           <CardContent className="p-4 flex items-center space-x-3">
             <div className="p-2 rounded-full bg-destructive">
@@ -473,9 +462,9 @@ export const GamifiedTodo: React.FC = () => {
                       onClick={() => setFilter(filterType)}
                       className={filter === filterType ? 'primary-gradient' : ''}
                     >
-                      {filterType === 'all' ? 'All' : 
-                       filterType === 'todo' ? 'To Do' : 
-                       filterType === 'inprogress' ? 'In Progress' : 'Completed'}
+                      {filterType === 'all' ? 'All' :
+                        filterType === 'todo' ? 'To Do' :
+                          filterType === 'inprogress' ? 'In Progress' : 'Completed'}
                     </Button>
                   ))}
                 </div>
@@ -485,16 +474,15 @@ export const GamifiedTodo: React.FC = () => {
 
           {/* Task List */}
           <div className="space-y-3">
-            {filteredTimetableTasks.map((task, idx) => {
+            {filteredTimetableTasks.map(({ task, time, activity }, idx) => {
+              if (!task) return null;
               const config = DIFFICULTY_CONFIG[task.difficulty];
-              // Find the matching timetable row by index or by some property
-              const timetableRow = DAILY_TIMETABLE[idx];
               return (
                 <Card key={task.id} className={`glass-card transition-all duration-300 ${
-                  task.state === 'completed' ? 'opacity-60' : 
-                  task.state === 'missed' ? 'border-red-500/50 bg-red-500/5' :
-                  task.state === 'inprogress' ? 'border-blue-500/50 bg-blue-500/5' :
-                  'hover:scale-[1.02]'
+                  task.state === 'completed' ? 'opacity-60' :
+                    task.state === 'missed' ? 'border-red-500/50 bg-red-500/5' :
+                      task.state === 'inprogress' ? 'border-blue-500/50 bg-blue-500/5' :
+                        'hover:scale-[1.02]'
                 }`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -502,9 +490,9 @@ export const GamifiedTodo: React.FC = () => {
                         {getStateIcon(task.state)}
                         <div>
                           <div className="flex items-center space-x-2">
-                            {/* Show time range here */}
+                            {/* Always show time next to task name */}
                             <span className="font-semibold text-xs text-muted-foreground">
-                              {timetableRow?.time}
+                              {time}
                             </span>
                             <p className={`font-medium ${task.state === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
                               {task.title}
@@ -565,6 +553,7 @@ export const GamifiedTodo: React.FC = () => {
 
         {/* Rewards Section */}
         <div className="space-y-4">
+          {/* ...achievements and stats unchanged... */}
           <Card className="glass-card">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
